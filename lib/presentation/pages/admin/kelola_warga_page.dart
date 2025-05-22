@@ -12,9 +12,9 @@ class KelolaWargaPage extends StatefulWidget {
 
 class _KelolaWargaPageState extends State<KelolaWargaPage> {
   final TextEditingController _searchController = TextEditingController();
-  String _selectedRT = 'Pilih RT';
+  String _selectedRT = 'Pilih Travel';
   List<String> _rtList = [
-    'Pilih RT',
+    'Pilih Grub',
     '1',
     '2',
     '3',
@@ -29,7 +29,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
 
   String _selectedRW = 'Pilih RW';
   List<String> _rwList = [
-    'Pilih RW',
+    'Pilih Grub',
     '1',
     '2',
     '3',
@@ -68,9 +68,9 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
         (index) => Warga(
           name: 'Budi Santoso',
           phone: '09990990${7970 + index}',
-          address: 'Jl. Melati Putri',
-          rt: 'RT 1',
-          rw: 'RW 8',
+          address: 'Dekat Masjidil Haram',
+          rt: 'Travel 1',
+          rw: '',
         ),
       );
     });
@@ -367,9 +367,9 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
             ),
           ),
           const SizedBox(width: 8),
-          _buildFilterChip('RT 8'),
+          _buildFilterChip('Travel 1'),
           const SizedBox(width: 8),
-          _buildFilterChip('RT 1'),
+          _buildFilterChip('Travel 2'),
         ],
       ),
     );
@@ -599,11 +599,11 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
           Expanded(
             child: ElevatedButton.icon(
               icon: const Icon(
-                Icons.file_upload_outlined,
+                Icons.sync,
                 size: 28,
               ),
               label: const Text(
-                'Upload CSV',
+                'Auto Sync',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -622,7 +622,10 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                   ),
                 ),
               ),
-              onPressed: _toggleUploadCSVPopup,
+              onPressed: () {
+                // Implement auto sync functionality
+              },
+              // onPressed: _toggleUploadCSVPopup,
             ),
           ),
           const SizedBox(width: 8),
@@ -634,7 +637,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                 color: Color(0xFF1658B3),
               ),
               label: const Text(
-                'Add Data',
+                'New Person',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -749,11 +752,11 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<String>(
                                           dropdownColor: Colors.white,
-                                          value: _selectedRT != 'Pilih RT'
+                                          value: _selectedRT != 'Pilih Travel'
                                               ? _selectedRT
                                               : null,
                                           hint: Text(
-                                            "Pilih RT",
+                                            "Pilih Travel",
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w600,
@@ -773,11 +776,11 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                             }
                                           },
                                           items: _rtList
-                                              .where((e) => e != 'Pilih RT')
+                                              .where((e) => e != 'Pilih Travel')
                                               .map((String value) {
                                             return DropdownMenuItem<String>(
                                               value: value,
-                                              child: Text('RT $value'),
+                                              child: Text('Travel $value'),
                                             );
                                           }).toList(),
                                         ),
@@ -787,60 +790,60 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                            color: Colors.grey.shade300,
-                                            width: 1),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          dropdownColor: Colors.white,
-                                          value: _selectedRW != 'Pilih RW'
-                                              ? _selectedRW
-                                              : null,
-                                          hint: Text(
-                                            "Pilih RW",
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                          isExpanded: true,
-                                          onChanged: (String? newValue) {
-                                            if (newValue != null) {
-                                              // Update both the modal state and parent state
-                                              setModalState(() {
-                                                localSelectedRW = newValue;
-                                              });
-                                              setState(() {
-                                                _selectedRW = newValue;
-                                              });
-                                            }
-                                          },
-                                          items: _rwList
-                                              .where((e) => e != 'Pilih RW')
-                                              .map((String value) {
-                                            return DropdownMenuItem<String>(
-                                              value: value,
-                                              child: Text('RW $value'),
-                                            );
-                                          }).toList(),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              // Expanded(
+                              //   child: Column(
+                              //     crossAxisAlignment: CrossAxisAlignment.start,
+                              //     children: [
+                              //       Container(
+                              //         padding: const EdgeInsets.symmetric(
+                              //             horizontal: 16, vertical: 4),
+                              //         decoration: BoxDecoration(
+                              //           color: Colors.white,
+                              //           borderRadius: BorderRadius.circular(20),
+                              //           border: Border.all(
+                              //               color: Colors.grey.shade300,
+                              //               width: 1),
+                              //         ),
+                              //         child: DropdownButtonHideUnderline(
+                              //           child: DropdownButton<String>(
+                              //             dropdownColor: Colors.white,
+                              //             value: _selectedRW != 'Pilih RW'
+                              //                 ? _selectedRW
+                              //                 : null,
+                              //             hint: Text(
+                              //               "Pilih RW",
+                              //               style: TextStyle(
+                              //                 fontSize: 16,
+                              //                 fontWeight: FontWeight.w600,
+                              //                 color: Colors.black,
+                              //               ),
+                              //             ),
+                              //             isExpanded: true,
+                              //             onChanged: (String? newValue) {
+                              //               if (newValue != null) {
+                              //                 // Update both the modal state and parent state
+                              //                 setModalState(() {
+                              //                   localSelectedRW = newValue;
+                              //                 });
+                              //                 setState(() {
+                              //                   _selectedRW = newValue;
+                              //                 });
+                              //               }
+                              //             },
+                              //             items: _rwList
+                              //                 .where((e) => e != 'Pilih RW')
+                              //                 .map((String value) {
+                              //               return DropdownMenuItem<String>(
+                              //                 value: value,
+                              //                 child: Text('RW $value'),
+                              //               );
+                              //             }).toList(),
+                              //           ),
+                              //         ),
+                              //       ),
+                              //     ],
+                              //   ),
+                              // ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -1059,13 +1062,13 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                             ],
                           ),
                           const SizedBox(height: 23),
-                          _buildFormField('Nama', 'Masukkan Nama Warga'),
+                          _buildFormField('Kode', 'Masukkan Kode Koneksi'),
                           const SizedBox(height: 8),
-                          _buildFormField('NIK', 'Masukkan NIK Warga'),
-                          const SizedBox(height: 8),
-                          _buildFormField('Alamat', 'Masukkan Alamat Warga'),
-                          const SizedBox(height: 8),
-                          _buildFormField('TTL', 'Tanggal / Bulan / Tahun'),
+                          // _buildFormField('NIK', 'Masukkan NIK Warga'),
+                          // const SizedBox(height: 8),
+                          // _buildFormField('Alamat', 'Masukkan Alamat Warga'),
+                          // const SizedBox(height: 8),
+                          // _buildFormField('TTL', 'Tanggal / Bulan / Tahun'),
                           const SizedBox(height: 36),
                           Row(
                             children: [

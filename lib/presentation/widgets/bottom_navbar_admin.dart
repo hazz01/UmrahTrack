@@ -13,11 +13,11 @@ class BottomNavbarAdmin extends StatelessWidget {
       onTap: onTap,
       type: BottomNavigationBarType.fixed,
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Warga'),
-        BottomNavigationBarItem(icon: Icon(Icons.attach_money), label: 'OpenMap'),
-        BottomNavigationBarItem(icon: Icon(Icons.videocam), label: '[Upcoming]'),
-        BottomNavigationBarItem(icon: Icon(Icons.mail), label: '[Upcoming]'),
-        BottomNavigationBarItem(icon: Icon(Icons.report), label: '[Upcoming]'),
+        BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Jamaah'),
+        BottomNavigationBarItem(icon: Icon(Icons.map), label: 'OpenMap'),
+        BottomNavigationBarItem(icon: Icon(Icons.warning), label: '[Upcoming]'),
+        BottomNavigationBarItem(icon: Icon(Icons.warning), label: '[Upcoming]'),
+        BottomNavigationBarItem(icon: Icon(Icons.warning), label: '[Upcoming]'),
       ],
     );
   }
