@@ -13,7 +13,7 @@ class SatuRTApp extends StatelessWidget {
       ),
       debugShowCheckedModeBanner: false,
       onGenerateRoute: AppRoutes.generateRoute,
-      initialRoute: '/admin/home',
+      initialRoute: '/',
     );
   }
 }

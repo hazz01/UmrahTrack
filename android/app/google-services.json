@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1036143219493",
+    "project_id": "umrahtrack-hazz",
+    "storage_bucket": "umrahtrack-hazz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1036143219493:android:f13c8594b7135a89c8c0cc",
+        "android_client_info": {
+          "package_name": "com.example.umrahtrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCuE-EbABiRi21n45AbnVIZKzwmo1KupXE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
