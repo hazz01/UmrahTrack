@@ -9,13 +9,19 @@ import 'package:umrahtrack/presentation/pages/jamaah/jamaah_home.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_lokasi.dart';
 import 'package:umrahtrack/presentation/pages/unverified_account_page.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize locale data for Indonesian date formatting
+  await initializeDateFormatting('id_ID', null);
   
   runApp(
     MultiProvider(
