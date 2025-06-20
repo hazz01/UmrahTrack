@@ -1,37 +1,36 @@
-// import 'package:flutter/material.dart';
-// import 'package:geolocator/geolocator.dart';
+import 'package:flutter/material.dart';
 
-// class JamaahLokasiPage extends StatefulWidget {
-//   const JamaahLokasiPage({super.key});
+class JamaahLokasiPage extends StatefulWidget {
+  const JamaahLokasiPage({super.key});
 
-//   @override
-//   State<JamaahLokasiPage> createState() => _JamaahLokasiPageState();
-// }
+  @override
+  State<JamaahLokasiPage> createState() => _JamaahLokasiPageState();
+}
 
-// class _JamaahLokasiPageState extends State<JamaahLokasiPage> {
-//   String lokasi = "Belum tersedia";
+class _JamaahLokasiPageState extends State<JamaahLokasiPage> {
+  // String lokasi = "Belum tersedia";
 
-//   Future<void> getLokasi() async {
-//     LocationPermission permission = await Geolocator.requestPermission();
-//     if (permission == LocationPermission.denied) return;
+  // Future<void> getLokasi() async {
+  //   LocationPermission permission = await Geolocator.requestPermission();
+  //   if (permission == LocationPermission.denied) return;
 
-//     final pos = await Geolocator.getCurrentPosition();
-//     setState(() {
-//       lokasi = "Lat: ${pos.latitude}, Lng: ${pos.longitude}";
-//     });
-//   }
+  //   final pos = await Geolocator.getCurrentPosition();
+  //   setState(() {
+  //     lokasi = "Lat: ${pos.latitude}, Lng: ${pos.longitude}";
+  //   });
+  // }
 
-//   @override
-//   void initState() {
-//     super.initState();
-//     getLokasi();
-//   }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   getLokasi();
+  // }
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: const Text('Lokasi Saya')),
-//       body: Center(child: Text(lokasi)),
-//     );
-//   }
-// }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Lokasi Saya')),
+      body: Center(child: Text('Fitur lokasi belum tersedia')),
+    );
+  }
+}

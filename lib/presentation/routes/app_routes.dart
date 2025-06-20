@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:umrahtrack/presentation/pages/admin/lokasi_person.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_home.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_lokasi.dart';
+import 'package:umrahtrack/presentation/pages/travel_registration_page.dart';
 import '../pages/admin/kelola_jamaah_page.dart';
 import '../pages/login_page.dart';
 import '../pages/splash_page.dart';
@@ -17,6 +18,10 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const LocationPage());
       case '/jamaah/home':
         return MaterialPageRoute(builder: (_) => const JamaahHomePage());
+      case '/jamaah/lokasi':
+        return MaterialPageRoute(builder: (_) => const JamaahLokasiPage());
+      case '/travel-registration':
+        return MaterialPageRoute(builder: (_) => const TravelRegistrationPage());
       case '/ ':
         return MaterialPageRoute(
             builder: (_) => const Scaffold(

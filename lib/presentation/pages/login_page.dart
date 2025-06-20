@@ -8,6 +8,7 @@ import 'package:umrahtrack/data/services/session_manager.dart';
 import 'package:umrahtrack/firebase_options.dart';
 import 'package:umrahtrack/presentation/pages/admin/kelola_jamaah_page.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_home.dart';
+import 'package:umrahtrack/presentation/pages/travel_registration_page.dart';
 
 // Firebase configuration - Replace with your own config
 
@@ -186,11 +187,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   bool isTravelUser = true;
   bool isPasswordVisible = false;
   bool isLoading = false;
+  String? _generatedTravelId;
+  bool _isGeneratingTravelId = false;
   
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
-  final _travelIdController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   
   late AnimationController _animationController;
@@ -199,7 +201,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   // Firebase instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   @override
   void initState() {
     super.initState();
@@ -211,30 +212,71 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.forward();
+    
+    // Generate Travel ID if starting in register mode with travel user selected
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!isLogin && isTravelUser) {
+        _generateTravelIdForPreview();
+      }
+    });
   }
-
   @override
   void dispose() {
     _animationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
-    _travelIdController.dispose();
     super.dispose();
   }
-
   void _toggleMode() {
     setState(() {
       isLogin = !isLogin;
+      // Reset travel ID when switching modes
+      _generatedTravelId = null;
     });
     _animationController.reset();
     _animationController.forward();
+    
+    // Generate Travel ID if switching to register mode and travel user is selected
+    if (!isLogin && isTravelUser) {
+      _generateTravelIdForPreview();
+    }
   }
 
   void _toggleUserType(bool isTravelSelected) {
     setState(() {
       isTravelUser = isTravelSelected;
+      // Reset travel ID when switching user types
+      if (!isTravelSelected) {
+        _generatedTravelId = null;
+      }
     });
+    
+    // Generate Travel ID if switching to travel user and in register mode
+    if (isTravelSelected && !isLogin) {
+      _generateTravelIdForPreview();
+    }
+  }
+
+  Future<void> _generateTravelIdForPreview() async {
+    if (_generatedTravelId != null) return; // Already generated
+    
+    setState(() {
+      _isGeneratingTravelId = true;
+    });
+
+    try {
+      final travelId = await _generateNextTravelId();
+      setState(() {
+        _generatedTravelId = travelId;
+        _isGeneratingTravelId = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isGeneratingTravelId = false;
+      });
+      // Don't show error here, will handle it during registration
+    }
   }
 
   void _showErrorDialog(String message) {
@@ -330,7 +372,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       });
     }
   }
-
   Future<bool> _isTravelIdUnique(String travelId) async {
     final QuerySnapshot result = await _firestore
         .collection('users')
@@ -340,8 +381,47 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     
     return result.docs.isEmpty;
   }
-
-  Future<void> _handleRegister() async {
+  Future<String> _generateNextTravelId() async {
+    try {
+      // Get all travel users - simpler query that doesn't require composite index
+      final QuerySnapshot result = await _firestore
+          .collection('users')
+          .where('userType', isEqualTo: 'travel')
+          .get();
+      
+      // Extract existing numbers and find the highest one
+      int highestNumber = 10; // Start from BS811 (11-1 = 10)
+      
+      for (var doc in result.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final travelId = data['travelId'] as String?;
+        
+        // Check if it matches BS8xx pattern
+        if (travelId != null && 
+            travelId.startsWith('BS8') && 
+            travelId.length == 5) {
+          final numberPart = travelId.substring(3); // Get the last 2 digits
+          final number = int.tryParse(numberPart);
+          if (number != null && number > highestNumber) {
+            highestNumber = number;
+          }
+        }
+      }
+      
+      // Generate next Travel ID
+      final nextNumber = highestNumber + 1;
+      final nextTravelId = 'BS8${nextNumber.toString().padLeft(2, '0')}';
+      
+      // Ensure it doesn't exceed BS899
+      if (nextNumber > 99) {
+        throw Exception('Travel ID limit reached. Maximum is BS899.');
+      }
+      
+      return nextTravelId;
+    } catch (e) {
+      throw Exception('Error generating Travel ID: $e');
+    }
+  }Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -349,13 +429,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     });
 
     try {
-      // Check if travel ID is unique for travel users
+      String? generatedTravelId;
+      
+      // Use pre-generated Travel ID for travel users, or generate new one if not available
       if (isTravelUser) {
-        final String travelId = _travelIdController.text.trim();
-        final bool isUnique = await _isTravelIdUnique(travelId);
-        
-        if (!isUnique) {
-          _showErrorDialog('Travel ID is already in use. Please choose a different one.');
+        try {
+          generatedTravelId = _generatedTravelId ?? await _generateNextTravelId();
+        } catch (e) {
+          _showErrorDialog('Failed to generate Travel ID: $e');
           setState(() {
             isLoading = false;
           });
@@ -381,22 +462,35 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         'uid': userCredential.user!.uid,
       };
       
-      // Add travel ID for travel users
-      if (isTravelUser) {
-        userData['travelId'] = _travelIdController.text.trim();
+      // Add travel ID for travel users (but keep registration status as incomplete)
+      if (isTravelUser && generatedTravelId != null) {
+        userData['travelId'] = generatedTravelId;
+        userData['registrationStatus'] = 'incomplete'; // They need to complete full registration
       }
 
       // Save user data to Firestore
-      await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);
-
-      _showSuccessDialog('Registration successful! Please login.');
-      
-      // Clear form and switch to login mode
-      _emailController.clear();
-      _passwordController.clear();
-      _nameController.clear();
-      _travelIdController.clear();
-      _toggleMode();
+      await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);      // For travel users, redirect to travel registration form
+      if (isTravelUser) {
+        _showSuccessDialog('Akun berhasil dibuat!\n\nTravel ID Anda: $generatedTravelId\n\nSilakan lengkapi registrasi travel Anda.');
+          // Clear form and navigate to travel registration
+        _emailController.clear();
+        _passwordController.clear();
+        _nameController.clear();
+        _generatedTravelId = null; // Reset generated travel ID
+        
+        // Navigate to travel registration page
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const TravelRegistrationPage()),
+        );      } else {
+        _showSuccessDialog('Registrasi berhasil! Silakan login.');
+        
+        // Clear form and switch to login mode
+        _emailController.clear();
+        _passwordController.clear();
+        _nameController.clear();
+        _generatedTravelId = null; // Reset generated travel ID
+        _toggleMode();
+      }
       
     } on FirebaseAuthException catch (e) {
       String errorMessage = _getAuthErrorMessage(e.code);
@@ -460,26 +554,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     }
     return null;
   }
-
   String? _validateName(String? value) {
     if (value == null || value.isEmpty) {
       return 'Please enter your name';
     }
     if (value.trim().length < 2) {
       return 'Name must be at least 2 characters';
-    }
-    return null;
-  }
-  
-  String? _validateTravelId(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter a Travel ID';
-    }
-    if (value.length != 4) {
-      return 'Travel ID must be exactly 4 characters';
-    }
-    if (!RegExp(r'^[a-zA-Z]+$').hasMatch(value)) {
-      return 'Travel ID must contain only letters (no numbers, symbols, or spaces)';
     }
     return null;
   }
@@ -678,8 +758,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                   ),
                                   
                                   const SizedBox(height: 16),
-                                  
-                                  // Name field (only for register)
+                                    // Name field (only for register)
                                   if (!isLogin) ...[
                                     TextFormField(
                                       controller: _nameController,
@@ -702,30 +781,89 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                       ),
                                     ),
                                     const SizedBox(height: 16),
-                                    
-                                    // Travel ID field (only for travel users in register mode)
+                                      // Travel ID info (only for travel users in register mode)
                                     if (isTravelUser) ...[
-                                      TextFormField(
-                                        controller: _travelIdController,
-                                        validator: _validateTravelId,
-                                        textCapitalization: TextCapitalization.characters,
-                                        decoration: InputDecoration(
-                                          labelText: 'Travel ID',
-                                          hintText: 'ABCD',
-                                          prefixIcon: const Icon(Icons.card_membership, color: Color(0xFF3B82F6)),
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                            borderSide: BorderSide(color: Colors.grey[300]!),
-                                          ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
-                                          ),
-                                          errorBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                            borderSide: const BorderSide(color: Colors.red, width: 1),
-                                          ),
-                                          helperText: '4 letters only (A-Z), must be unique',
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue[50],
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: const Color(0xFF3B82F6), width: 1),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(Icons.card_membership, color: Color(0xFF3B82F6)),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [                                                      const Text(
+                                                        'Travel ID Anda',
+                                                        style: TextStyle(
+                                                          fontWeight: FontWeight.w600,
+                                                          color: Color(0xFF3B82F6),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      if (_isGeneratingTravelId)
+                                                        const Text(
+                                                          'Auto-generated dengan id [generating...]',
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            color: Color(0xFF1E40AF),
+                                                          ),
+                                                        )
+                                                      else if (_generatedTravelId != null)
+                                                        Text(
+                                                          'Auto-generated dengan id $_generatedTravelId',
+                                                          style: const TextStyle(
+                                                            fontSize: 13,
+                                                            color: Color(0xFF1E40AF),
+                                                            fontWeight: FontWeight.w500,
+                                                          ),
+                                                        )
+                                                      else
+                                                        const Text(
+                                                          'Auto-generated dengan id [akan dibuat]',
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            color: Color(0xFF1E40AF),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (_generatedTravelId != null) ...[
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green[50],
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: Colors.green[300]!, width: 1),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.check_circle_outline, size: 16, color: Colors.green[600]),
+                                                    const SizedBox(width: 6),
+                                                    Expanded(
+                                                      child: Text(
+                                                        'Travel ID ini akan digunakan untuk registrasi Anda',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: Colors.green[700],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                       ),
                                       const SizedBox(height: 16),
