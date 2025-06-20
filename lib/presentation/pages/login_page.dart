@@ -9,6 +9,7 @@ import 'package:umrahtrack/firebase_options.dart';
 import 'package:umrahtrack/presentation/pages/admin/kelola_jamaah_page.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_home.dart';
 import 'package:umrahtrack/presentation/pages/travel_registration_page.dart';
+import 'package:umrahtrack/presentation/pages/unverified_account_page.dart';
 
 // Firebase configuration - Replace with your own config
 
@@ -33,12 +34,12 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
       // Use AuthWrapper to handle authentication state
-      home: const AuthWrapper(),
-      routes: {
+      home: const AuthWrapper(),      routes: {
         '/login': (context) => const LoginPage(),
         '/admin/home': (context) => const AdminHomePage(),
         '/jamaah/home': (context) => const JamaahHomePage(),
         '/kelola_jamaah': (context) => const KelolaWargaPage(),
+        '/unverified_account': (context) => const UnverifiedAccountPage(),
       },
       debugShowCheckedModeBanner: false,
     );
@@ -120,8 +121,18 @@ class UserTypeRouter extends StatelessWidget {
           SessionManager.logout();
           return const LoginPage();
         }
+          final userType = userData['userType'] ?? '';
         
-        final userType = userData['userType'] ?? '';
+        // For travel users, check appStatus for verification
+        if (userType == 'travel') {
+          String appStatus = userData['appStatus'] ?? '';
+          
+          if (appStatus != 'verified') {
+            // Block access for unverified travel accounts
+            SessionManager.logout();
+            return const UnverifiedAccountPage();
+          }
+        }
         
         if (userType == 'travel') {
           return const KelolaWargaPage();
@@ -333,11 +344,24 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       DocumentSnapshot userDoc = await _firestore
           .collection('users')
           .doc(userCredential.user!.uid)
-          .get();
-
-      if (userDoc.exists) {
+          .get();      if (userDoc.exists) {
         Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
         String userType = userData['userType'] ?? '';
+
+        // For travel users, check appStatus for verification
+        if (userType == 'travel') {
+          String appStatus = userData['appStatus'] ?? '';
+          
+          if (appStatus != 'verified') {
+            // Block access for unverified travel accounts
+            _showErrorDialog('Akun Anda belum terverifikasi oleh admin. Silakan tunggu proses verifikasi.');
+            await SessionManager.logout(); // Clear session and sign out
+            
+            // Navigate to unverified account page
+            Navigator.of(context).pushReplacementNamed('/unverified_account');
+            return;
+          }
+        }
 
         // Save session data with 24-hour expiration
         await SessionManager.saveLoginSession(
@@ -461,11 +485,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         'createdAt': FieldValue.serverTimestamp(),
         'uid': userCredential.user!.uid,
       };
-      
-      // Add travel ID for travel users (but keep registration status as incomplete)
+        // Add travel ID for travel users (but keep registration status as incomplete)
       if (isTravelUser && generatedTravelId != null) {
         userData['travelId'] = generatedTravelId;
         userData['registrationStatus'] = 'incomplete'; // They need to complete full registration
+        userData['appStatus'] = 'pending'; // Set initial status to pending verification
       }
 
       // Save user data to Firestore

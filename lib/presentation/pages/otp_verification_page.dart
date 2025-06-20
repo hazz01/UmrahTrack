@@ -591,9 +591,7 @@ class _PasswordCreationPageState extends State<PasswordCreationPage> {
 
       // Update display name
       await userCredential.user!.updateDisplayName(widget.companyName);
-      print('Display name updated to: ${widget.companyName}');
-
-      // Prepare complete user data
+      print('Display name updated to: ${widget.companyName}');      // Prepare complete user data
       final userData = {
         'name': widget.companyName,
         'email': widget.email,
@@ -601,6 +599,7 @@ class _PasswordCreationPageState extends State<PasswordCreationPage> {
         'travelId': widget.travelId,
         'registrationStatus': 'active', // Account is now active
         'emailVerified': true,
+        'appStatus': 'pending', // Set initial status to pending verification
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'uid': userCredential.user!.uid,

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:umrahtrack/data/services/session_manager.dart';
 import '../../widgets/bottom_navbar_admin.dart';
+import '../../widgets/travel_verification_guard.dart';
 
 // UserData model class to match Firestore schema
 class UserData {
@@ -68,10 +69,8 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
   
   // Edit mode
   String? _editingUserId;
-  
-  // Current travel user's data
+    // Current travel user's data
   String? _currentTravelId;
-  String? _currentUserName;
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
@@ -128,25 +127,17 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
 
         final userData = userDoc.data() as Map<String, dynamic>;
         final userType = userData['userType'];
-        
         if (userType != 'travel') {
           setState(() {
             _hasError = true;
             _errorMessage = 'Access denied. Only travel users can access this page.';
           });
           return;
-        }
-
-        setState(() {
+        }        setState(() {
           _currentTravelId = userData['travelId'];
-          _currentUserName = userData['name'] ?? currentUser.displayName;
-        });
-      } else {
-        // Get user name from session
-        final storedData = await SessionManager.getStoredUserData();
+        });      } else {
         setState(() {
           _currentTravelId = travelId;
-          _currentUserName = storedData?['name'] ?? _auth.currentUser?.displayName;
         });
       }
 
@@ -433,149 +424,151 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFFF8F8F8),
-      appBar: AppBar(
-        title: Text('Kelola Jamaah ${_currentTravelId != null ? '- Travel $_currentTravelId' : ''}'),
-        backgroundColor: Color(0xFF1658B3),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: _handleLogout,
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              SizedBox(height: 20),
-              _buildSearchBar(),
-              SizedBox(height: 18),
-              _buildFilterChips(),
-              Expanded(
-                child: _isLoading
-                    ? Center(child: CircularProgressIndicator())
-                    : _hasError
-                        ? Center(
-                            child: Text(
-                              _errorMessage,
-                              style: TextStyle(color: Colors.red),
+    return TravelVerificationGuard(
+      child: Scaffold(
+        backgroundColor: Color(0xFFF8F8F8),
+        appBar: AppBar(
+          title: Text('Kelola Jamaah ${_currentTravelId != null ? '- Travel $_currentTravelId' : ''}'),
+          backgroundColor: Color(0xFF1658B3),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.logout),
+              onPressed: _handleLogout,
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                SizedBox(height: 20),
+                _buildSearchBar(),
+                SizedBox(height: 18),
+                _buildFilterChips(),
+                Expanded(
+                  child: _isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : _hasError
+                          ? Center(
+                              child: Text(
+                                _errorMessage,
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            )
+                          : StreamBuilder<QuerySnapshot>(
+                              stream: _getUsersStream(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return Center(child: CircularProgressIndicator());
+                                }
+                                
+                                if (snapshot.hasError) {
+                                  return Center(child: Text('Error: ${snapshot.error}'));
+                                }
+                                
+                                if (_currentTravelId == null) {
+                                  return Center(child: CircularProgressIndicator());
+                                }
+                                
+                                final userDocs = snapshot.data?.docs ?? [];
+                                final allUsers = userDocs
+                                    .map((doc) => UserData.fromFirestore(doc))
+                                    .toList();
+                                
+                                final filteredUsers = _filterUsers(allUsers);
+                                
+                                if (filteredUsers.isEmpty) {
+                                  return Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                                        SizedBox(height: 16),
+                                        Text(
+                                          'Tidak ada jamaah ditemukan',
+                                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                                
+                                return _isSelectMode
+                                    ? _buildSelectModeList(filteredUsers)
+                                    : _buildUserList(filteredUsers);
+                              },
                             ),
-                          )
-                        : StreamBuilder<QuerySnapshot>(
-                            stream: _getUsersStream(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return Center(child: CircularProgressIndicator());
-                              }
-                              
-                              if (snapshot.hasError) {
-                                return Center(child: Text('Error: ${snapshot.error}'));
-                              }
-                              
-                              if (_currentTravelId == null) {
-                                return Center(child: CircularProgressIndicator());
-                              }
-                              
-                              final userDocs = snapshot.data?.docs ?? [];
-                              final allUsers = userDocs
-                                  .map((doc) => UserData.fromFirestore(doc))
-                                  .toList();
-                              
-                              final filteredUsers = _filterUsers(allUsers);
-                              
-                              if (filteredUsers.isEmpty) {
-                                return Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                                      SizedBox(height: 16),
-                                      Text(
-                                        'Tidak ada jamaah ditemukan',
-                                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-                              
-                              return _isSelectMode
-                                  ? _buildSelectModeList(filteredUsers)
-                                  : _buildUserList(filteredUsers);
-                            },
+                ),
+              ],
+            ),
+            if (_isFilterOpen) _buildFilterPopup(),
+            if (_isAddDataOpen) _buildAddDataPopup(),
+            if (_isUploadCSVOpen) _buildUploadCSVPopup(),
+          ],
+        ),
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isSelectMode)
+              Container(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-              ),
-            ],
-          ),
-          if (_isFilterOpen) _buildFilterPopup(),
-          if (_isAddDataOpen) _buildAddDataPopup(),
-          if (_isUploadCSVOpen) _buildUploadCSVPopup(),
-        ],
-      ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_isSelectMode)
-            Container(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
+                        ),
+                        onPressed: _deleteSelectedUsers,
+                        child: Text('Hapus ${_selectedUsers.length} Jamaah'),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor: Colors.grey,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: _deleteSelectedUsers,
-                      child: Text('Hapus ${_selectedUsers.length} Jamaah'),
+                      onPressed: _toggleSelectMode,
+                      child: Text('Batal'),
                     ),
-                  ),
-                  SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    onPressed: _toggleSelectMode,
-                    child: Text('Batal'),
-                  ),
-                ],
+                  ],
+                ),
               ),
+            _buildBottomActionBar(),
+            BottomNavbarAdmin(
+              currentIndex: 0,
+              onTap: (index) {
+                switch (index) {
+                  case 0:
+                    Navigator.pushNamed(context, '/admin/home');
+                    break;
+                  case 1:
+                    Navigator.pushNamed(context, '/admin/lokasi');
+                    break;
+                  case 2:
+                    Navigator.pushNamed(context, '/admin/cctv');
+                    break;
+                  case 3:
+                    Navigator.pushNamed(context, '/admin/surat');
+                    break;
+                  case 4:
+                    Navigator.pushNamed(context, '/admin/laporan');
+                    break;
+                }
+              },
             ),
-          _buildBottomActionBar(),
-          BottomNavbarAdmin(
-            currentIndex: 0,
-            onTap: (index) {
-              switch (index) {
-                case 0:
-                  Navigator.pushNamed(context, '/admin/home');
-                  break;
-                case 1:
-                  Navigator.pushNamed(context, '/admin/lokasi');
-                  break;
-                case 2:
-                  Navigator.pushNamed(context, '/admin/cctv');
-                  break;
-                case 3:
-                  Navigator.pushNamed(context, '/admin/surat');
-                  break;
-                case 4:
-                  Navigator.pushNamed(context, '/admin/laporan');
-                  break;
-              }
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -809,7 +802,6 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                       ),
                     ),
                     onPressed: () {
-                      // Implement edit functionality
                       _startEdit(user);
                     },
                     child: const Text(
@@ -832,7 +824,6 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                       ),
                     ),
                     onPressed: () {
-                      // Implement delete functionality
                       _deleteUser(user.uid);
                     },
                     child: const Text(
@@ -892,7 +883,6 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                             ),
                           ),
                           onPressed: () {
-                            // Implement edit functionality
                             _startEdit(user);
                           },
                           child: const Text('Edit',
@@ -910,7 +900,6 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                             ),
                           ),
                           onPressed: () {
-                            // Implement hapus functionality
                             _deleteUser(user.uid);
                           },
                           child: const Text('Hapus'),
@@ -1442,9 +1431,8 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
     );
   }
 
-  // Remove the CSV upload popup since it's not needed for this use case
   Widget _buildUploadCSVPopup() {
-    return Container(); // Empty container
+    return Container(); // Empty container - not needed for this use case
   }
 
   Widget _buildFormField(String label, String hint, TextEditingController controller) {

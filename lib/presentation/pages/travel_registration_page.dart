@@ -197,10 +197,10 @@ class _TravelRegistrationPageState extends State<TravelRegistrationPage> {
         'admins': _adminNameControllers.asMap().entries.map((entry) => {
           'name': entry.value.text.trim(),
           'nik': _adminNikControllers[entry.key].text.trim(),
-        }).toList(),
-        'dataConfirmation': _dataConfirmation,
+        }).toList(),        'dataConfirmation': _dataConfirmation,
         'registrationStatus': 'complete',
         'verified': false, // Default to false, will be verified by admin
+        'appStatus': 'pending', // Set initial status to pending verification
         'completedAt': FieldValue.serverTimestamp(),
       });
 

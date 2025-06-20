@@ -7,6 +7,7 @@ import 'package:umrahtrack/presentation/pages/admin/kelola_jamaah_page.dart';
 import 'package:umrahtrack/presentation/pages/admin/lokasi_person.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_home.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_lokasi.dart';
+import 'package:umrahtrack/presentation/pages/unverified_account_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -50,7 +51,8 @@ class UmrahTrackApp extends StatelessWidget {
         '/admin/lokasi': (context) => const LocationPage(),
         '/jamaah/home': (context) => const JamaahHomePage(),
         '/jamaah/lokasi': (context) => const JamaahLokasiPage(),
-      },      onGenerateRoute: (RouteSettings settings) {
+        '/unverified_account': (context) => const UnverifiedAccountPage(),
+      },onGenerateRoute: (RouteSettings settings) {
         // Handle specific missing admin routes
         switch (settings.name) {
           case '/admin/cctv':
