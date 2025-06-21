@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TravelRegistrationPage extends StatefulWidget {
-  const TravelRegistrationPage({Key? key}) : super(key: key);
+  const TravelRegistrationPage({super.key});
 
   @override
   State<TravelRegistrationPage> createState() => _TravelRegistrationPageState();

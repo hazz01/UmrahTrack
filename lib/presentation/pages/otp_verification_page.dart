@@ -13,13 +13,13 @@ class OTPVerificationPage extends StatefulWidget {
   final Map<String, dynamic> registrationData;
 
   const OTPVerificationPage({
-    Key? key,
+    super.key,
     required this.email,
     required this.companyName,
     required this.travelName,
     required this.travelId,
     required this.registrationData,
-  }) : super(key: key);
+  });
 
   @override
   State<OTPVerificationPage> createState() => _OTPVerificationPageState();
@@ -517,13 +517,13 @@ class PasswordCreationPage extends StatefulWidget {
   final Map<String, dynamic> registrationData;
 
   const PasswordCreationPage({
-    Key? key,
+    super.key,
     required this.email,
     required this.companyName,
     required this.travelName,
     required this.travelId,
     required this.registrationData,
-  }) : super(key: key);
+  });
 
   @override
   State<PasswordCreationPage> createState() => _PasswordCreationPageState();
@@ -972,12 +972,12 @@ class RegistrationSuccessPage extends StatelessWidget {
   final String email;
 
   const RegistrationSuccessPage({
-    Key? key,
+    super.key,
     required this.companyName,
     required this.travelName,
     required this.travelId,
     required this.email,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

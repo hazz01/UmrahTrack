@@ -23,7 +23,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +48,7 @@ class MyApp extends StatelessWidget {
 
 // Auth Wrapper to handle authentication state
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({Key? key}) : super(key: key);
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +100,7 @@ class AuthWrapper extends StatelessWidget {
 
 // Router to determine user type and navigate accordingly
 class UserTypeRouter extends StatelessWidget {
-  const UserTypeRouter({Key? key}) : super(key: key);
+  const UserTypeRouter({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -187,7 +187,7 @@ class UserTypeRouter extends StatelessWidget {
 }
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -614,7 +614,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               child: Column(
                 children: [
                   // Header with logo
-                  Container(
+                  SizedBox(
                     height: MediaQuery.of(context).size.height * 0.25,
                     child: Center(
                       child: Column(
@@ -1007,7 +1007,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
 // Enhanced Admin Home Page with user info
 class AdminHomePage extends StatelessWidget {
-  const AdminHomePage({Key? key}) : super(key: key);
+  const AdminHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1050,7 +1050,7 @@ class AdminHomePage extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text('Email: ${user?.email ?? 'N/A'}'),
                     Text('Name: ${user?.displayName ?? 'N/A'}'),
-                    Text('User Type: Travel Admin'),
+                    const Text('User Type: Travel Admin'),
                   ],
                 ),
               ),
@@ -1107,7 +1107,7 @@ class AdminHomePage extends StatelessWidget {
 
 // Enhanced Warga Home Page with user info
 class WargaHomePage extends StatelessWidget {
-  const WargaHomePage({Key? key}) : super(key: key);
+  const WargaHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1150,7 +1150,7 @@ class WargaHomePage extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text('Email: ${user?.email ?? 'N/A'}'),
                     Text('Name: ${user?.displayName ?? 'N/A'}'),
-                    Text('User Type: Jamaah'),
+                    const Text('User Type: Jamaah'),
                   ],
                 ),
               ),

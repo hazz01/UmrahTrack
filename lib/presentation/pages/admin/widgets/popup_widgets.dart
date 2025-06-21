@@ -6,10 +6,10 @@ class AddDataPopupWidget extends StatefulWidget {
   final VoidCallback onCancel;
   
   const AddDataPopupWidget({
-    Key? key, 
+    super.key, 
     required this.onSave, 
     required this.onCancel,
-  }) : super(key: key);
+  });
 
   @override
   State<AddDataPopupWidget> createState() => _AddDataPopupWidgetState();
@@ -141,11 +141,11 @@ class UploadCSVPopupWidget extends StatelessWidget {
   final VoidCallback onSelectFile;
   
   const UploadCSVPopupWidget({
-    Key? key, 
+    super.key, 
     required this.onUpload, 
     required this.onCancel,
     required this.onSelectFile,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -259,12 +259,12 @@ class SelectAllActionWidget extends StatelessWidget {
   final VoidCallback onHapusAll;
   
   const SelectAllActionWidget({
-    Key? key, 
+    super.key, 
     required this.selectedCount, 
     required this.totalCount,
     required this.onSelectAll,
     required this.onHapusAll,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

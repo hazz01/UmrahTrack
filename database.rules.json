@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "locations": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid",
+        ".validate": "newData.hasChildren(['latitude', 'longitude', 'timestamp'])"
+      }
+    }
+  }
+}

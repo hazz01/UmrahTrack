@@ -77,7 +77,7 @@ class SessionManager {
       
       final loginTime = _inMemoryStorage[_keyLoginTime] as int? ?? 0;
       final currentTime = DateTime.now().millisecondsSinceEpoch;
-      final sessionDuration = Duration(hours: sessionDurationHours).inMilliseconds;
+      final sessionDuration = const Duration(hours: sessionDurationHours).inMilliseconds;
       
       // Check if session has expired
       if (currentTime - loginTime > sessionDuration) {

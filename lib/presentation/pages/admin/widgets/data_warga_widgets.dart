@@ -22,9 +22,9 @@ class SearchBarWidget extends StatelessWidget {
   final TextEditingController controller;
   
   const SearchBarWidget({
-    Key? key, 
+    super.key, 
     required this.controller,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -54,10 +54,10 @@ class FilterChipWidget extends StatelessWidget {
   final VoidCallback onRemove;
   
   const FilterChipWidget({
-    Key? key, 
+    super.key, 
     required this.label, 
     required this.onRemove,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -89,11 +89,11 @@ class WargaCardWidget extends StatelessWidget {
   final VoidCallback onDelete;
   
   const WargaCardWidget({
-    Key? key, 
+    super.key, 
     required this.warga, 
     required this.onEdit, 
     required this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -160,13 +160,13 @@ class SelectableWargaCardWidget extends StatelessWidget {
   final VoidCallback onDelete;
   
   const SelectableWargaCardWidget({
-    Key? key, 
+    super.key, 
     required this.warga, 
     required this.isSelected,
     required this.onToggleSelection,
     required this.onEdit, 
     required this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -243,10 +243,10 @@ class BottomActionBarWidget extends StatelessWidget {
   final VoidCallback onAddData;
   
   const BottomActionBarWidget({
-    Key? key, 
+    super.key, 
     required this.onUploadCSV, 
     required this.onAddData,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -299,13 +299,13 @@ class FilterPopupWidget extends StatefulWidget {
   final VoidCallback onCancel;
   
   const FilterPopupWidget({
-    Key? key, 
+    super.key, 
     required this.initialRT,
     required this.initialRW,
     required this.initialGender,
     required this.onApply,
     required this.onCancel,
-  }) : super(key: key);
+  });
 
   @override
   State<FilterPopupWidget> createState() => _FilterPopupWidgetState();

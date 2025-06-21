@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:umrahtrack/providers/auth_provider.dart';
+import 'package:umrahtrack/providers/location_provider.dart';
 import 'package:umrahtrack/presentation/pages/login_page.dart';
 import 'package:umrahtrack/presentation/pages/travel_registration_page.dart';
 import 'package:umrahtrack/presentation/pages/admin/kelola_jamaah_page.dart';
@@ -8,6 +9,8 @@ import 'package:umrahtrack/presentation/pages/admin/lokasi_person.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_home.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_lokasi.dart';
 import 'package:umrahtrack/presentation/pages/unverified_account_page.dart';
+import 'package:umrahtrack/test_geolocator.dart';
+import 'package:umrahtrack/test_firebase_realtime.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
@@ -22,11 +25,11 @@ void main() async {
   
   // Initialize locale data for Indonesian date formatting
   await initializeDateFormatting('id_ID', null);
-  
-  runApp(
+    runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => LocationProvider()),
       ],
       child: const UmrahTrackApp(),
     ),
@@ -34,7 +37,7 @@ void main() async {
 }
 
 class UmrahTrackApp extends StatelessWidget {
-  const UmrahTrackApp({Key? key}) : super(key: key);
+  const UmrahTrackApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +58,10 @@ class UmrahTrackApp extends StatelessWidget {
         '/kelola_jamaah': (context) => const KelolaWargaPage(),
         '/admin/home': (context) => const KelolaWargaPage(), // Main admin page
         '/admin/lokasi': (context) => const LocationPage(),
-        '/jamaah/home': (context) => const JamaahHomePage(),
-        '/jamaah/lokasi': (context) => const JamaahLokasiPage(),
+        '/jamaah/home': (context) => const JamaahHomePage(),        '/jamaah/lokasi': (context) => const JamaahLokasiPage(),
         '/unverified_account': (context) => const UnverifiedAccountPage(),
+        '/test-geolocator': (context) => const TestLocationPage(),
+        '/test-firebase-realtime': (context) => const TestFirebaseRealtimePage(),
       },onGenerateRoute: (RouteSettings settings) {
         // Handle specific missing admin routes
         switch (settings.name) {

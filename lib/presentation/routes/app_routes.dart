@@ -5,7 +5,6 @@ import 'package:umrahtrack/presentation/pages/jamaah/jamaah_lokasi.dart';
 import 'package:umrahtrack/presentation/pages/travel_registration_page.dart';
 import '../pages/admin/kelola_jamaah_page.dart';
 import '../pages/login_page.dart';
-import '../pages/splash_page.dart';
 
 class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {

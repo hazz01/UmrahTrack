@@ -9,10 +9,10 @@ class TravelVerificationGuard extends StatelessWidget {
   final Widget? loadingWidget;
   
   const TravelVerificationGuard({
-    Key? key,
+    super.key,
     required this.child,
     this.loadingWidget,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

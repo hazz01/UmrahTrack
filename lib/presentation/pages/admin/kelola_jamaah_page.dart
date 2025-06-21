@@ -216,7 +216,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
   Stream<QuerySnapshot> _getUsersStream() {
     if (_currentTravelId == null) {
       // Return empty stream if current travel ID is not loaded yet
-      return Stream.empty();
+      return const Stream.empty();
     }
     
     Query query = _firestore.collection('users')
@@ -426,15 +426,15 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
   Widget build(BuildContext context) {
     return TravelVerificationGuard(
       child: Scaffold(
-        backgroundColor: Color(0xFFF8F8F8),
+        backgroundColor: const Color(0xFFF8F8F8),
         appBar: AppBar(
           title: Text('Kelola Jamaah ${_currentTravelId != null ? '- Travel $_currentTravelId' : ''}'),
-          backgroundColor: Color(0xFF1658B3),
+          backgroundColor: const Color(0xFF1658B3),
           foregroundColor: Colors.white,
           elevation: 0,
           actions: [
             IconButton(
-              icon: Icon(Icons.logout),
+              icon: const Icon(Icons.logout),
               onPressed: _handleLogout,
             ),
           ],
@@ -443,25 +443,25 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
           children: [
             Column(
               children: [
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 _buildSearchBar(),
-                SizedBox(height: 18),
+                const SizedBox(height: 18),
                 _buildFilterChips(),
                 Expanded(
                   child: _isLoading
-                      ? Center(child: CircularProgressIndicator())
+                      ? const Center(child: CircularProgressIndicator())
                       : _hasError
                           ? Center(
                               child: Text(
                                 _errorMessage,
-                                style: TextStyle(color: Colors.red),
+                                style: const TextStyle(color: Colors.red),
                               ),
                             )
                           : StreamBuilder<QuerySnapshot>(
                               stream: _getUsersStream(),
                               builder: (context, snapshot) {
                                 if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return Center(child: CircularProgressIndicator());
+                                  return const Center(child: CircularProgressIndicator());
                                 }
                                 
                                 if (snapshot.hasError) {
@@ -469,7 +469,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                 }
                                 
                                 if (_currentTravelId == null) {
-                                  return Center(child: CircularProgressIndicator());
+                                  return const Center(child: CircularProgressIndicator());
                                 }
                                 
                                 final userDocs = snapshot.data?.docs ?? [];
@@ -480,7 +480,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                 final filteredUsers = _filterUsers(allUsers);
                                 
                                 if (filteredUsers.isEmpty) {
-                                  return Center(
+                                  return const Center(
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
@@ -513,7 +513,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
           children: [
             if (_isSelectMode)
               Container(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
                     Expanded(
@@ -529,7 +529,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                         child: Text('Hapus ${_selectedUsers.length} Jamaah'),
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey,
@@ -539,7 +539,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                         ),
                       ),
                       onPressed: _toggleSelectMode,
-                      child: Text('Batal'),
+                      child: const Text('Batal'),
                     ),
                   ],
                 ),
@@ -586,7 +586,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
             ),
             suffixIcon: _searchQuery.isNotEmpty 
                 ? IconButton(
-                    icon: Icon(Icons.clear),
+                    icon: const Icon(Icons.clear),
                     onPressed: () {
                       _searchController.clear();
                     },
@@ -606,7 +606,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                 color: Color(0x80000000),
                 fontSize: 14,
                 fontWeight: FontWeight.w400),
-            prefixIconColor: Color(0xFF1658B3)),
+            prefixIconColor: const Color(0xFF1658B3)),
       ),
     );
   }
@@ -636,7 +636,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
             height: 40,
             width: 60,
             decoration: BoxDecoration(
-              color: Color(0xFF1658B3),
+              color: const Color(0xFF1658B3),
               borderRadius: BorderRadius.circular(84),
             ),
             child: IconButton(
@@ -655,7 +655,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
               child: Row(
                 children: [
                   ...activeFilters.map((filter) => Padding(
-                    padding: EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 8),
                     child: filter,
                   )),
                   if (activeFilters.isNotEmpty)
@@ -667,7 +667,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                           color: Colors.red.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(84),
                         ),
-                        child: Text(
+                        child: const Text(
                           'Bersihkan Filter',
                           style: TextStyle(
                             color: Colors.red,
@@ -774,7 +774,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
             ),
             Text(
               user.email,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF636363),
@@ -796,7 +796,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       side: BorderSide.none,
-                      backgroundColor: Color(0x261658B3),
+                      backgroundColor: const Color(0x261658B3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(68),
                       ),
@@ -988,12 +988,12 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: _isSelectMode ? Colors.white : Color(0xFFDDE8F8)),
+                    color: _isSelectMode ? Colors.white : const Color(0xFFDDE8F8)),
               ),
               style: ElevatedButton.styleFrom(
                 elevation: 0,
                 minimumSize: const Size(0, 55),
-                backgroundColor: _isSelectMode ? Colors.green : Color(0xFF1658B3),
+                backgroundColor: _isSelectMode ? Colors.green : const Color(0xFF1658B3),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(84),
@@ -1025,7 +1025,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
               style: ElevatedButton.styleFrom(
                 elevation: 0,
                 minimumSize: const Size(0, 55),
-                backgroundColor: Color(0xFFDCE6F4),
+                backgroundColor: const Color(0xFFDCE6F4),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(84),
@@ -1077,7 +1077,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                             child: Container(
                               width: 85,
                               height: 6,
-                              color: Color(0xFFE1E1E1),
+                              color: const Color(0xFFE1E1E1),
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -1111,7 +1111,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                           ),
                           const SizedBox(height: 23),
                           Container(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                                 horizontal: 24, vertical: 16),
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -1123,7 +1123,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                             ),
                             child: Column(
                               children: [
-                                Align(
+                                const Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     'Gender',
@@ -1134,7 +1134,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                     ),
                                   ),
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Row(
                                   children: [
                                     Radio<String>(
@@ -1145,7 +1145,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                           localGender = value!;
                                         });
                                       },
-                                      activeColor: Color(0xFF1658B3),
+                                      activeColor: const Color(0xFF1658B3),
                                     ),
                                     const Text('Semua'),
                                   ],
@@ -1160,7 +1160,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                           localGender = value!;
                                         });
                                       },
-                                      activeColor: Color(0xFF1658B3),
+                                      activeColor: const Color(0xFF1658B3),
                                     ),
                                     const Text('Laki-laki'),
                                   ],
@@ -1175,7 +1175,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                           localGender = value!;
                                         });
                                       },
-                                      activeColor: Color(0xFF1658B3),
+                                      activeColor: const Color(0xFF1658B3),
                                     ),
                                     const Text('Perempuan'),
                                   ],
@@ -1188,17 +1188,10 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                             children: [
                               Expanded(
                                 child: ElevatedButton(
-                                  child: const Text(
-                                    'Terapkan Filter',
-                                    style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white),
-                                  ),
                                   style: ElevatedButton.styleFrom(
                                     elevation: 0,
                                     minimumSize: const Size(0, 55),
-                                    backgroundColor: Color(0xFF1658B3),
+                                    backgroundColor: const Color(0xFF1658B3),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(84),
                                     ),
@@ -1209,23 +1202,22 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                     });
                                     _toggleFilterPopup();
                                   },
+                                  child: const Text(
+                                    'Terapkan Filter',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: ElevatedButton(
-                                  child: const Text(
-                                    'Reset',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF1658B3),
-                                    ),
-                                  ),
                                   style: ElevatedButton.styleFrom(
                                     elevation: 0,
                                     minimumSize: const Size(0, 55),
-                                    backgroundColor: Color(0xFFDCE6F4),
+                                    backgroundColor: const Color(0xFFDCE6F4),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(84),
                                     ),
@@ -1238,6 +1230,14 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                       _filterGender = '';
                                     });
                                   },
+                                  child: const Text(
+                                    'Reset',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1658B3),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -1287,7 +1287,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                             child: Container(
                               width: 85,
                               height: 6,
-                              color: Color(0xFFE1E1E1),
+                              color: const Color(0xFFE1E1E1),
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -1300,7 +1300,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                   alignment: Alignment.center,
                                   child: Text(
                                     _editingUserId != null ? 'Edit Jamaah' : 'Tambah Jamaah',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                         fontSize: 24,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.black),
@@ -1337,11 +1337,11 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                               color: Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(12.0),
                             ),
-                            padding: EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(16.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'Travel ID',
                                   style: TextStyle(
                                     fontSize: 18.0,
@@ -1349,7 +1349,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                     color: Colors.black,
                                   ),
                                 ),
-                                SizedBox(height: 8.0),
+                                const SizedBox(height: 8.0),
                                 Text(
                                   _currentTravelId ?? 'Loading...',
                                   style: TextStyle(
@@ -1358,7 +1358,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
-                                SizedBox(height: 4.0),
+                                const SizedBox(height: 4.0),
                                 Text(
                                   'Otomatis diisi sesuai Travel ID Anda',
                                   style: TextStyle(
@@ -1374,15 +1374,10 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                             children: [
                               Expanded(
                                 child: ElevatedButton(
-                                  child: Text(
-                                    _editingUserId != null ? 'Update Jamaah' : 'Tambah Jamaah',
-                                    style: TextStyle(
-                                        color: Colors.white),
-                                  ),
                                   style: ElevatedButton.styleFrom(
                                     elevation: 0,
                                     minimumSize: const Size(0, 55),
-                                    backgroundColor: Color(0xFF1658B3),
+                                    backgroundColor: const Color(0xFF1658B3),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(84),
                                     ),
@@ -1394,26 +1389,31 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                       _createUser();
                                     }
                                   },
+                                  child: Text(
+                                    _editingUserId != null ? 'Update Jamaah' : 'Tambah Jamaah',
+                                    style: TextStyle(
+                                        color: Colors.white),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    minimumSize: const Size(0, 55),
+                                    backgroundColor: const Color(0xFFDCE6F4),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(84),
+                                    ),
+                                  ),
+                                  onPressed: _toggleAddDataPopup,
                                   child: const Text(
                                     'Batal',
                                     style: TextStyle(
                                       color: Color(0xFF1658B3),
                                     ),
                                   ),
-                                  style: ElevatedButton.styleFrom(
-                                    elevation: 0,
-                                    minimumSize: const Size(0, 55),
-                                    backgroundColor: Color(0xFFDCE6F4),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(84),
-                                    ),
-                                  ),
-                                  onPressed: _toggleAddDataPopup,
                                 ),
                               ),
                             ],
@@ -1445,32 +1445,32 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12.0),
       ),
-      padding: EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 18.0,
               fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
           ),
-          SizedBox(height: 8.0),
+          const SizedBox(height: 8.0),
           TextField(
             controller: controller,
             obscureText: label.toLowerCase().contains('password'),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(
+              hintStyle: const TextStyle(
                 color: Colors.grey,
                 fontSize: 16.0,
               ),
               border: InputBorder.none,
               contentPadding: EdgeInsets.zero,
             ),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 16.0,
               color: Colors.black87,
             ),
@@ -1493,7 +1493,7 @@ class DashedBorderPainter extends CustomPainter {
 
     final rect = RRect.fromRectAndRadius(
       Offset.zero & size,
-      Radius.circular(16),
+      const Radius.circular(16),
     );
     final path = Path()..addRRect(rect);
 

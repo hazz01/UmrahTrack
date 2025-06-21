@@ -1,13 +1,18 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:umrahtrack/data/services/session_manager.dart';
 import '../../widgets/bottom_navbar_admin.dart';
 
 class LocationPage extends StatefulWidget {
   const LocationPage({super.key});
 
-  @override
+  @override 
   State<LocationPage> createState() => _LocationPageState();
 }
 
@@ -15,13 +20,18 @@ class _LocationPageState extends State<LocationPage> {
   // Controller untuk map
   final MapController _mapController = MapController();
   
+  // Firebase references
+  final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  
   // Koordinat lokasi diri sendiri (admin)
-  LatLng _selfLocation = LatLng(21.417729508894676, 39.82747184158817); // Lokasi diri sendiri di Mekkah
+  final LatLng _selfLocation = const LatLng(21.417729508894676, 39.82747184158817); // Lokasi diri sendiri di Mekkah
   
   // Koordinat lokasi jamaah (bisa diganti)
-  LatLng _currentLocation = LatLng(21.416729508894676, 39.82647184158817); // Lokasi di Mekkah
+  LatLng _currentLocation = const LatLng(21.416729508894676, 39.82647184158817); // Lokasi di Mekkah
   
-  // List jamaah dan lokasi mereka (untuk simulasi data)
+  // List jamaah dan lokasi mereka (untuk data real-time)
   List<JamaahLocation> _jamaahList = [];
   
   // Jamaah yang dipilih untuk ditampilkan detailnya
@@ -30,49 +40,174 @@ class _LocationPageState extends State<LocationPage> {
   // Flag untuk menampilkan ringkasan lokasi
   bool _showLocationSummary = false;
   
+  // Travel ID untuk filter jamaah
+  String? _currentTravelId;
+  bool _isLoading = true;
+  
+  // Stream subscriptions
+  Map<String, StreamSubscription> _locationSubscriptions = {};
+  
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _initializeData();
   }
   
-  void _loadData() {
-    // Mock data untuk jamaah dengan koordinat baru di Mekkah
-    setState(() {
-      _jamaahList = [
-        JamaahLocation(
-          name: 'Ahmad Fauzi',
-          phone: '0812345678',
-          address: 'Dekat Masjidil Haram',
-          lastSeen: 'Baru saja',
-          groupName: 'Grup Umroh Berkah',
-          location: LatLng(21.416729508894676, 39.82647184158817),
-          avatarUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
-        ),
-        JamaahLocation(
-          name: 'Siti Aisyah',
-          phone: '0823456789',
-          address: 'Area Abraj Al Bait',
-          lastSeen: '5 menit yang lalu',
-          groupName: 'Grup Umroh Berkah',
-          location: LatLng(21.42245559576951, 39.823298386374326),
-          avatarUrl: 'https://randomuser.me/api/portraits/women/2.jpg',
-        ),
-        JamaahLocation(
-          name: 'Abdullah Mahmud',
-          phone: '0834567890',
-          address: 'Dekat Jam Makkah Royal Clock',
-          lastSeen: '10 menit yang lalu',
-          groupName: 'Grup Umroh Barokah',
-          location: LatLng(21.423149230123666, 39.82706711224022),
-          avatarUrl: 'https://randomuser.me/api/portraits/men/3.jpg',
-        ),
-      ];
+  @override
+  void dispose() {
+    // Cancel all location subscriptions
+    for (var subscription in _locationSubscriptions.values) {
+      subscription.cancel();
+    }
+    super.dispose();
+  }
+  
+  Future<void> _initializeData() async {
+    try {
+      // Get current travel ID
+      final travelId = await SessionManager.getCurrentTravelId();
+      if (travelId == null) {
+        // Fallback to get from Firebase
+        final currentUser = _auth.currentUser;
+        if (currentUser != null) {
+          final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+          if (userDoc.exists) {
+            final userData = userDoc.data() as Map<String, dynamic>;
+            _currentTravelId = userData['travelId'];
+          }
+        }
+      } else {
+        _currentTravelId = travelId;
+      }
       
-      // Set jamaah pertama sebagai yang dipilih
-      _selectedJamaah = _jamaahList[0];
-      _currentLocation = _selectedJamaah!.location;
+      if (_currentTravelId != null) {
+        _loadJamaahData();
+      }
+    } catch (e) {
+      print('Error initializing data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+    void _loadJamaahData() {
+    // Listen to jamaah users for this travel ID
+    _firestore
+        .collection('users')
+        .where('userType', isEqualTo: 'jamaah')
+        .where('travelId', isEqualTo: _currentTravelId)
+        .snapshots()
+        .listen((snapshot) {
+      
+      for (var doc in snapshot.docs) {
+        final userData = doc.data();
+        final userId = doc.id;
+        
+        // Listen to location updates for each jamaah
+        _subscribeToUserLocation(userId, userData);
+      }
+      
+      setState(() {
+        _isLoading = false;
+      });
     });
+  }
+  
+  void _subscribeToUserLocation(String userId, Map<String, dynamic> userData) {
+    // Cancel existing subscription if any
+    _locationSubscriptions[userId]?.cancel();
+    
+    // Subscribe to location updates
+    _locationSubscriptions[userId] = _database
+        .child('locations')
+        .child(userId)
+        .onValue
+        .listen((event) {
+      
+      if (event.snapshot.exists) {
+        final locationData = Map<String, dynamic>.from(event.snapshot.value as Map);
+        final latitude = locationData['latitude']?.toDouble();
+        final longitude = locationData['longitude']?.toDouble();
+        
+        if (latitude != null && longitude != null) {
+          final timestamp = locationData['timestamp'] ?? 0;
+          final lastUpdate = DateTime.fromMillisecondsSinceEpoch(timestamp);
+          final timeDiff = DateTime.now().difference(lastUpdate);
+          
+          String lastSeen;
+          if (timeDiff.inMinutes < 1) {
+            lastSeen = 'Baru saja';
+          } else if (timeDiff.inMinutes < 60) {
+            lastSeen = '${timeDiff.inMinutes} menit yang lalu';
+          } else if (timeDiff.inHours < 24) {
+            lastSeen = '${timeDiff.inHours} jam yang lalu';
+          } else {
+            lastSeen = '${timeDiff.inDays} hari yang lalu';
+          }
+          
+          final jamaahLocation = JamaahLocation(
+            userId: userId,
+            name: userData['name'] ?? 'Unknown',
+            phone: userData['phone'] ?? 'N/A',
+            email: userData['email'] ?? 'N/A',
+            address: _getAddressFromCoordinates(latitude, longitude),
+            lastSeen: lastSeen,
+            groupName: 'Travel ${_currentTravelId}',
+            location: LatLng(latitude, longitude),
+            avatarUrl: userData['profilePicture'] ?? 'https://ui-avatars.com/api/?name=${userData['name'] ?? 'U'}&background=1658B3&color=fff',
+            accuracy: locationData['accuracy']?.toDouble() ?? 0.0,
+            speed: locationData['speed']?.toDouble() ?? 0.0,
+          );
+          
+          setState(() {
+            // Update or add jamaah location
+            final existingIndex = _jamaahList.indexWhere((j) => j.userId == userId);
+            if (existingIndex != -1) {
+              _jamaahList[existingIndex] = jamaahLocation;
+            } else {
+              _jamaahList.add(jamaahLocation);
+            }
+            
+            // Set first jamaah as selected if none selected
+            if (_selectedJamaah == null && _jamaahList.isNotEmpty) {
+              _selectedJamaah = _jamaahList[0];
+              _currentLocation = _selectedJamaah!.location;
+            }
+            
+            // Update selected jamaah if it's the same user
+            if (_selectedJamaah?.userId == userId) {
+              _selectedJamaah = jamaahLocation;
+            }
+          });
+        }
+      } else {
+        // Remove jamaah if no location data
+        setState(() {
+          _jamaahList.removeWhere((j) => j.userId == userId);
+          if (_selectedJamaah?.userId == userId) {
+            _selectedJamaah = _jamaahList.isNotEmpty ? _jamaahList[0] : null;
+          }
+        });
+      }
+    });
+  }
+  
+  String _getAddressFromCoordinates(double latitude, double longitude) {
+    // Simple address approximation for Mecca area
+    if (latitude >= 21.420 && latitude <= 21.425 && longitude >= 39.825 && longitude <= 39.830) {
+      return 'Dekat Masjidil Haram';
+    } else if (latitude >= 21.420 && latitude <= 21.425 && longitude >= 39.820 && longitude <= 39.825) {
+      return 'Area Abraj Al Bait';
+    } else if (latitude >= 21.415 && latitude <= 21.420) {
+      return 'Sekitar Makkah Royal Clock';
+    } else {
+      return 'Makkah Al-Mukarramah';
+    }
+  }
+    void _loadData() {
+    // This method will be called by the refresh button
+    // Real data loading is handled by _loadJamaahData()
+    _loadJamaahData();
   }
   
   // Fungsi untuk mengubah jamaah yang dipilih tanpa menggerakkan peta
@@ -138,16 +273,15 @@ class _LocationPageState extends State<LocationPage> {
       _mapController.move(center, 13); // Adjust zoom level as needed
     }
   }
-  
-  @override
+    @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFF8F8F8),
+      backgroundColor: const Color(0xFFF8F8F8),
       appBar: AppBar(
-        backgroundColor: Color(0xFF1658B3),
+        backgroundColor: const Color(0xFF1658B3),
         elevation: 0,
         title: const Text(
-          'Lokasi Jamaah',
+          'Lokasi Jamaah Real-Time',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w600,
@@ -167,7 +301,55 @@ class _LocationPageState extends State<LocationPage> {
           ),
         ],
       ),
-      body: Stack(
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: Color(0xFF1658B3),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Memuat data lokasi jamaah...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF6C7B8A),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : _jamaahList.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.location_off,
+                        size: 64,
+                        color: Color(0xFF6C7B8A),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Tidak ada data lokasi jamaah',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF6C7B8A),
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Pastikan jamaah telah mengaktifkan lokasi',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF9E9E9E),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Stack(
         children: [
           // Map dengan marker
           FlutterMap(
@@ -198,7 +380,7 @@ class _LocationPageState extends State<LocationPage> {
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: _selectedJamaah == jamaah
-                                ? Color(0xFF1658B3)
+                                ? const Color(0xFF1658B3)
                                 : Colors.white,
                             width: 2,
                           ),
@@ -228,7 +410,7 @@ class _LocationPageState extends State<LocationPage> {
                           width: 2,
                         ),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.person_pin_circle,
                         color: Color(0xFF1658B3),
                         size: 30,
@@ -249,11 +431,11 @@ class _LocationPageState extends State<LocationPage> {
               mini: true,
               backgroundColor: Colors.white,
               elevation: 2,
+              onPressed: _resetMapOrientation,
               child: Icon(
                 Icons.compass_calibration,
                 color: Color(0xFF1658B3),
               ),
-              onPressed: _resetMapOrientation,
             ),
           ),
           
@@ -266,11 +448,11 @@ class _LocationPageState extends State<LocationPage> {
               mini: true,
               backgroundColor: Colors.white,
               elevation: 2,
+              onPressed: _focusOnSelf,
               child: Icon(
                 Icons.my_location,
                 color: Color(0xFF1658B3),
               ),
-              onPressed: _focusOnSelf,
             ),
           ),
           
@@ -282,11 +464,11 @@ class _LocationPageState extends State<LocationPage> {
               mini: true,
               backgroundColor: Colors.white,
               elevation: 2,
+              onPressed: _showAllPeople,
               child: Icon(
                 Icons.people,
                 color: Color(0xFF1658B3),
               ),
-              onPressed: _showAllPeople,
             ),
           ),
           
@@ -370,12 +552,11 @@ class _LocationPageState extends State<LocationPage> {
                           fontWeight: FontWeight.w600,
                           color: Colors.black,
                         ),
-                      ),
-                      Text(
-                        _selectedJamaah!.phone,
+                      ),                      Text(
+                        _selectedJamaah!.email,
                         style: const TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                           color: Color(0xFF636363),
                         ),
                       ),
@@ -425,15 +606,15 @@ class _LocationPageState extends State<LocationPage> {
                     ),
                     label: Text(
                       _showLocationSummary ? 'Sembunyikan Detail' : 'Lihat Detail',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Color(0xFF1658B3),
-                      side: BorderSide(color: Color(0x261658B3)),
-                      backgroundColor: Color(0x261658B3),
+                      foregroundColor: const Color(0xFF1658B3),
+                      side: const BorderSide(color: Color(0x261658B3)),
+                      backgroundColor: const Color(0x261658B3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(68),
                       ),
@@ -456,7 +637,7 @@ class _LocationPageState extends State<LocationPage> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF1658B3),
+                      backgroundColor: const Color(0xFF1658B3),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(68),
@@ -541,8 +722,7 @@ class _LocationPageState extends State<LocationPage> {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
+          ),          const SizedBox(height: 8),
           Row(
             children: [
               const Icon(
@@ -561,6 +741,44 @@ class _LocationPageState extends State<LocationPage> {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(
+                Icons.gps_fixed,
+                size: 20,
+                color: Color(0xFF1658B3),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Akurasi: ±${_selectedJamaah!.accuracy.toStringAsFixed(1)} meter',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF636363),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(
+                Icons.speed,
+                size: 20,
+                color: Color(0xFF1658B3),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Kecepatan: ${(_selectedJamaah!.speed * 3.6).toStringAsFixed(1)} km/h',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF636363),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -569,21 +787,29 @@ class _LocationPageState extends State<LocationPage> {
 
 // Model untuk data lokasi jamaah
 class JamaahLocation {
+  final String userId;
   final String name;
   final String phone;
+  final String email;
   final String address;
   final String lastSeen;
   final String groupName;
   final LatLng location;
   final String avatarUrl;
+  final double accuracy;
+  final double speed;
 
   JamaahLocation({
+    required this.userId,
     required this.name,
     required this.phone,
+    required this.email,
     required this.address,
     required this.lastSeen,
     required this.groupName,
     required this.location,
     required this.avatarUrl,
+    required this.accuracy,
+    required this.speed,
   });
 }

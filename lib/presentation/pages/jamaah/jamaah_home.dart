@@ -84,8 +84,7 @@ class _JamaahHomePageState extends State<JamaahHomePage> {
           ? const Center(child: CircularProgressIndicator())
           : userData == null || userData!['travelId'] == null
               ? const InputTravelIDWidget()
-              : InfoJamaahTravel(userData: userData!, travelData: travelData),
-      bottomNavigationBar: BottomNavbarJamaah(
+              : InfoJamaahTravel(userData: userData!, travelData: travelData),      bottomNavigationBar: BottomNavbarJamaah(
         currentIndex: 0,
         onTap: (i) {
           switch (i) {
@@ -93,7 +92,7 @@ class _JamaahHomePageState extends State<JamaahHomePage> {
               // Already on home page
               break;
             case 1:
-              Navigator.pushNamed(context, '/jamaah/lokasi');
+              Navigator.pushReplacementNamed(context, '/jamaah/lokasi');
               break;
             case 2:
               ScaffoldMessenger.of(context).showSnackBar(
@@ -600,13 +599,12 @@ class InfoJamaahTravel extends StatelessWidget {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Expanded(
-                        child: _buildQuickAction(
+                      Expanded(                        child: _buildQuickAction(
                           Icons.location_on,
                           'Lokasi',
                           'Pantau lokasi real-time',
                           Colors.blue,
-                          () => Navigator.pushNamed(context, '/jamaah/lokasi'),
+                          () => Navigator.pushReplacementNamed(context, '/jamaah/lokasi'),
                         ),
                       ),
                       const SizedBox(width: 12),

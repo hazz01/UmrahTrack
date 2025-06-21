@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:umrahtrack/data/services/session_manager.dart';
 
 class UnverifiedAccountPage extends StatelessWidget {
-  const UnverifiedAccountPage({Key? key}) : super(key: key);
+  const UnverifiedAccountPage({super.key});
 
   @override
   Widget build(BuildContext context) {

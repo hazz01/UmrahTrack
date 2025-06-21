@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/services/user_verification_service.dart';
 
 class VerificationStatusWidget extends StatelessWidget {
-  const VerificationStatusWidget({Key? key}) : super(key: key);
+  const VerificationStatusWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -101,10 +101,10 @@ class VerificationGuard extends StatelessWidget {
   final Widget? unverifiedWidget;
   
   const VerificationGuard({
-    Key? key,
+    super.key,
     required this.child,
     this.unverifiedWidget,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
