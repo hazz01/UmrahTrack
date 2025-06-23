@@ -160,7 +160,6 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
   void _redirectToLogin() {
     Navigator.of(context).pushReplacementNamed('/login');
   }
-
   Future<void> _handleLogout() async {
     try {
       // Show confirmation dialog
@@ -168,16 +167,33 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Konfirmasi Logout'),
-            content: const Text('Apakah Anda yakin ingin keluar?'),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.logout_rounded, color: Color(0xFF1658B3)),
+                SizedBox(width: 8),
+                Text('Konfirmasi Logout'),
+              ],
+            ),
+            content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Batal'),
+                child: const Text(
+                  'Batal',
+                  style: TextStyle(color: Color(0xFF6C7B8A)),
+                ),
               ),
-              TextButton(
+              ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Logout'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1658B3),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text(
+                  'Logout',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           );
@@ -190,7 +206,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
           context: context,
           barrierDismissible: false,
           builder: (context) => const Center(
-            child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(color: Color(0xFF1658B3)),
           ),
         );
 
@@ -198,18 +214,25 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
         await SessionManager.logout();
         
         // Navigate to login page
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/login',
-          (route) => false,
-        );
+        if (context.mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/login',
+            (route) => false,
+          );
+        }
       }
     } catch (e) {
       // Close loading dialog if open
-      Navigator.of(context).pop();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error during logout: $e')),
-      );
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error during logout: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -421,21 +444,58 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
       _isUploadCSVOpen = !_isUploadCSVOpen;
     });
   }
-
   @override
   Widget build(BuildContext context) {
     return TravelVerificationGuard(
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F8F8),
         appBar: AppBar(
-          title: Text('Kelola Jamaah ${_currentTravelId != null ? '- Travel $_currentTravelId' : ''}'),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Kelola Jamaah',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                ),
+              ),
+              if (_currentTravelId != null)
+                Text(
+                  'Travel $_currentTravelId',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w400,
+                    fontSize: 14,
+                  ),
+                ),
+            ],
+          ),
           backgroundColor: const Color(0xFF1658B3),
           foregroundColor: Colors.white,
           elevation: 0,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1658B3), Color(0xFF42A5F5)],
+              ),
+            ),
+          ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: _handleLogout,
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                onPressed: _handleLogout,
+                tooltip: 'Logout',
+              ),
             ),
           ],
         ),
@@ -572,41 +632,52 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
       ),
     );
   }
-
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-            hintText: 'Cari Data Jamaah',
-            prefixIcon: const Icon(
-              Icons.search,
-              size: 21,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Cari jamaah berdasarkan nama atau email...',
+            hintStyle: const TextStyle(
+              color: Color(0xFF9E9E9E),
+              fontSize: 14,
+            ),
+            prefixIcon: Container(
+              padding: const EdgeInsets.all(12),
+              child: const Icon(
+                Icons.search_rounded,
+                color: Color(0xFF1658B3),
+                size: 20,
+              ),
             ),
             suffixIcon: _searchQuery.isNotEmpty 
                 ? IconButton(
-                    icon: const Icon(Icons.clear),
+                    icon: const Icon(
+                      Icons.clear_rounded,
+                      color: Color(0xFF6C7B8A),
+                    ),
                     onPressed: () {
                       _searchController.clear();
                     },
                   )
                 : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(84),
-              borderSide: const BorderSide(
-                color: Color(0xFFB9B9B9),
-                width: 1,
-              ),
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(vertical: 0),
-            hintStyle: const TextStyle(
-                color: Color(0x80000000),
-                fontSize: 14,
-                fontWeight: FontWeight.w400),
-            prefixIconColor: const Color(0xFF1658B3)),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+        ),
       ),
     );
   }

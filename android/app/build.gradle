@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.example.umrahtrack"
-    compileSdk = 34
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     defaultConfig {

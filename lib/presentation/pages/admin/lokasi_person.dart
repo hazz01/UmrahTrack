@@ -276,28 +276,57 @@ class _LocationPageState extends State<LocationPage> {
     @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
-      appBar: AppBar(
+      backgroundColor: const Color(0xFFF8F8F8),      appBar: AppBar(
         backgroundColor: const Color(0xFF1658B3),
         elevation: 0,
-        title: const Text(
-          'Lokasi Jamaah Real-Time',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1658B3), Color(0xFF42A5F5)],
+            ),
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.refresh,
-              color: Colors.white,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lokasi Jamaah Real-Time',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 20,
+              ),
             ),
-            onPressed: () {
-              // Refresh lokasi
-              _loadData();
-            },
+            Text(
+              'Pantau lokasi jamaah secara real-time',
+              style: TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w400,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.refresh_rounded,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                // Refresh lokasi
+                _loadData();
+              },
+              tooltip: 'Refresh Data',
+            ),
           ),
         ],
       ),
@@ -421,54 +450,81 @@ class _LocationPageState extends State<LocationPage> {
               ),
             ],
           ),
-          
-          // Tombol kompas di pojok kanan atas
+            // Floating action buttons with better styling
           Positioned(
             top: 16,
             right: 16,
-            child: FloatingActionButton(
-              heroTag: "compass",
-              mini: true,
-              backgroundColor: Colors.white,
-              elevation: 2,
-              onPressed: _resetMapOrientation,
-              child: Icon(
-                Icons.compass_calibration,
-                color: Color(0xFF1658B3),
-              ),
-            ),
-          ),
-          
-          // Tombol untuk fokus lokasi diri dan semua orang
-          Positioned(
-            top: 76,
-            right: 16,
-            child: FloatingActionButton(
-              heroTag: "focus",
-              mini: true,
-              backgroundColor: Colors.white,
-              elevation: 2,
-              onPressed: _focusOnSelf,
-              child: Icon(
-                Icons.my_location,
-                color: Color(0xFF1658B3),
-              ),
-            ),
-          ),
-          
-          Positioned(
-            top: 136,
-            right: 16,
-            child: FloatingActionButton(
-              heroTag: "showAll",
-              mini: true,
-              backgroundColor: Colors.white,
-              elevation: 2,
-              onPressed: _showAllPeople,
-              child: Icon(
-                Icons.people,
-                color: Color(0xFF1658B3),
-              ),
+            child: Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: FloatingActionButton(
+                    heroTag: "compass",
+                    mini: true,
+                    backgroundColor: Colors.white,
+                    elevation: 0,
+                    onPressed: _resetMapOrientation,
+                    child: const Icon(
+                      Icons.compass_calibration_rounded,
+                      color: Color(0xFF1658B3),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: FloatingActionButton(
+                    heroTag: "focus",
+                    mini: true,
+                    backgroundColor: Colors.white,
+                    elevation: 0,
+                    onPressed: _focusOnSelf,
+                    child: const Icon(
+                      Icons.my_location_rounded,
+                      color: Color(0xFF1658B3),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: FloatingActionButton(
+                    heroTag: "showAll",
+                    mini: true,
+                    backgroundColor: Colors.white,
+                    elevation: 0,
+                    onPressed: _showAllPeople,
+                    child: const Icon(
+                      Icons.people_rounded,
+                      color: Color(0xFF1658B3),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           

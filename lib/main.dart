@@ -67,7 +67,7 @@ class UmrahTrackApp extends StatelessWidget {
         switch (settings.name) {
           case '/admin/cctv':
             return MaterialPageRoute(
-              builder: (context) => _buildPlaceholderPage('CCTV', 'Fitur CCTV sedang dalam pengembangan'),
+              builder: (context) => _buildPlaceholderPage('Rombongan', 'Fitur sedang dalam pengembangan'),
             );
           case '/admin/surat':
             return MaterialPageRoute(
