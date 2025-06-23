@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {    // Users collection
+    match /users/{userId} {
+      // Users can read/write their own documents
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Travel users can read individual jamaah documents
+      allow read: if request.auth != null && 
+        request.auth.uid != userId && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel';
+      
+      // Travel users can query/list jamaah users with specific filters
+      allow list: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel';
+      
+      // Travel users can update jamaah documents for rombongan management
+      allow update: if request.auth != null && 
+        request.auth.uid != userId && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel' &&
+        get(/databases/$(database)/documents/users/$(userId)).data.userType == 'jamaah' &&
+        get(/databases/$(database)/documents/users/$(userId)).data.travelId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.travelId &&
+        // Only allow updating specific fields for rombongan management
+        (request.writeFields.hasOnly(['rombonganId', 'updatedAt']) || 
+         request.writeFields.hasOnly(['name', 'email', 'rombonganId', 'updatedAt']) ||
+         request.writeFields.hasOnly(['name', 'email', 'userType', 'travelId', 'rombonganId', 'updatedAt']));
+      
+      // Travel users can create jamaah documents
+      allow create: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel' &&
+        request.resource.data.userType == 'jamaah' &&
+        request.resource.data.travelId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.travelId;
+      
+      // Travel users can delete jamaah documents from their travel
+      allow delete: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel' &&
+        resource.data.userType == 'jamaah' &&
+        resource.data.travelId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.travelId;
+    }
+    
+    // Rombongan collection
+    match /rombongan/{rombonganId} {
+      // Travel users can read/write rombongan documents
+      allow read, write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel';
+      
+      // Travel users can list/query rombongan documents
+      allow list: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel';
+      
+      // Jamaah users can read rombongan from their travel ID
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'jamaah' &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.travelId == resource.data.travelId;
+    }
+    
+    // Travels collection
+    match /travels/{travelId} {
+      allow read, write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel';
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.travelId == travelId;
+    }
+    
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

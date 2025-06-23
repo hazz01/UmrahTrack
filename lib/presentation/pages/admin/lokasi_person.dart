@@ -7,6 +7,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:umrahtrack/data/services/session_manager.dart';
+import 'package:umrahtrack/data/models/rombongan_model.dart';
 import '../../widgets/bottom_navbar_admin.dart';
 
 class LocationPage extends StatefulWidget {
@@ -39,10 +40,13 @@ class _LocationPageState extends State<LocationPage> {
 
   // Flag untuk menampilkan ringkasan lokasi
   bool _showLocationSummary = false;
-  
-  // Travel ID untuk filter jamaah
+    // Travel ID untuk filter jamaah
   String? _currentTravelId;
   bool _isLoading = true;
+  
+  // Rombongan filtering
+  String _filterRombongan = '';
+  List<Rombongan> _availableRombongan = [];
   
   // Stream subscriptions
   Map<String, StreamSubscription> _locationSubscriptions = {};
@@ -61,8 +65,7 @@ class _LocationPageState extends State<LocationPage> {
     }
     super.dispose();
   }
-  
-  Future<void> _initializeData() async {
+    Future<void> _initializeData() async {
     try {
       // Get current travel ID
       final travelId = await SessionManager.getCurrentTravelId();
@@ -81,6 +84,7 @@ class _LocationPageState extends State<LocationPage> {
       }
       
       if (_currentTravelId != null) {
+        await _loadRombonganData();
         _loadJamaahData();
       }
     } catch (e) {
@@ -88,6 +92,26 @@ class _LocationPageState extends State<LocationPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadRombonganData() async {
+    if (_currentTravelId != null) {
+      try {
+        final rombonganSnapshot = await _firestore
+            .collection('rombongan')
+            .where('travelId', isEqualTo: _currentTravelId)
+            .where('status', isEqualTo: 'active')
+            .get();
+        
+        setState(() {
+          _availableRombongan = rombonganSnapshot.docs
+              .map((doc) => Rombongan.fromFirestore(doc))
+              .toList();
+        });
+      } catch (e) {
+        print('Error loading rombongan: $e');
+      }
     }
   }
     void _loadJamaahData() {
@@ -144,7 +168,26 @@ class _LocationPageState extends State<LocationPage> {
           } else {
             lastSeen = '${timeDiff.inDays} hari yang lalu';
           }
-          
+            // Get rombongan information if exists
+          final rombonganId = userData['rombonganId'] as String?;
+          String rombonganName = 'Tanpa Rombongan';
+          if (rombonganId != null && rombonganId.isNotEmpty) {
+            final rombongan = _availableRombongan.firstWhere(
+              (r) => r.id == rombonganId,
+              orElse: () => Rombongan(
+                id: '',
+                namaRombongan: 'Unknown Rombongan',
+                deskripsi: '',
+                travelId: '',
+                kapasitas: 0,
+                tanggalBerangkat: DateTime.now(),
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ),
+            );
+            rombonganName = rombongan.namaRombongan;
+          }
+
           final jamaahLocation = JamaahLocation(
             userId: userId,
             name: userData['name'] ?? 'Unknown',
@@ -153,6 +196,8 @@ class _LocationPageState extends State<LocationPage> {
             address: _getAddressFromCoordinates(latitude, longitude),
             lastSeen: lastSeen,
             groupName: 'Travel ${_currentTravelId}',
+            rombonganId: rombonganId,
+            rombonganName: rombonganName,
             location: LatLng(latitude, longitude),
             avatarUrl: userData['profilePicture'] ?? 'https://ui-avatars.com/api/?name=${userData['name'] ?? 'U'}&background=1658B3&color=fff',
             accuracy: locationData['accuracy']?.toDouble() ?? 0.0,
@@ -239,11 +284,11 @@ class _LocationPageState extends State<LocationPage> {
   void _focusOnSelf() {
     _mapController.move(_selfLocation, 15);
   }
-  
-  // Fungsi untuk menampilkan semua orang dalam tampilan peta
+    // Fungsi untuk menampilkan semua orang dalam tampilan peta
   void _showAllPeople() {
-    // Buat list semua titik lokasi termasuk lokasi diri sendiri
-    List<LatLng> allPoints = [..._jamaahList.map((j) => j.location), _selfLocation];
+    // Filter jamaah berdasarkan rombongan
+    final filteredJamaah = _getFilteredJamaah();
+    List<LatLng> allPoints = [...filteredJamaah.map((j) => j.location), _selfLocation];
     
     // Hitung bounding box untuk semua titik
     if (allPoints.isNotEmpty) {
@@ -272,6 +317,92 @@ class _LocationPageState extends State<LocationPage> {
       // Move the map to the center of the bounds with an appropriate zoom level
       _mapController.move(center, 13); // Adjust zoom level as needed
     }
+  }
+
+  // Filter jamaah berdasarkan rombongan
+  List<JamaahLocation> _getFilteredJamaah() {
+    if (_filterRombongan.isEmpty) {
+      return _jamaahList;
+    } else if (_filterRombongan == 'no_rombongan') {
+      return _jamaahList.where((jamaah) => jamaah.rombonganId == null || jamaah.rombonganId!.isEmpty).toList();
+    } else {
+      return _jamaahList.where((jamaah) => jamaah.rombonganId == _filterRombongan).toList();
+    }
+  }
+
+  // Toggle filter popup
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        String localRombongan = _filterRombongan;
+        
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Filter Berdasarkan Rombongan'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    title: const Text('Semua'),
+                    value: '',
+                    groupValue: localRombongan,
+                    onChanged: (value) {
+                      setModalState(() {
+                        localRombongan = value!;
+                      });
+                    },
+                    activeColor: const Color(0xFF1658B3),
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('Tanpa Rombongan'),
+                    value: 'no_rombongan',
+                    groupValue: localRombongan,
+                    onChanged: (value) {
+                      setModalState(() {
+                        localRombongan = value!;
+                      });
+                    },
+                    activeColor: const Color(0xFF1658B3),
+                  ),
+                  ..._availableRombongan.map((rombongan) => RadioListTile<String>(
+                    title: Text(rombongan.namaRombongan),
+                    value: rombongan.id,
+                    groupValue: localRombongan,
+                    onChanged: (value) {
+                      setModalState(() {
+                        localRombongan = value!;
+                      });
+                    },
+                    activeColor: const Color(0xFF1658B3),
+                  )),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _filterRombongan = localRombongan;
+                    });
+                    Navigator.of(context).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1658B3),
+                  ),
+                  child: const Text('Terapkan', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
     @override
   Widget build(BuildContext context) {
@@ -308,8 +439,23 @@ class _LocationPageState extends State<LocationPage> {
               ),
             ),
           ],
-        ),
-        actions: [
+        ),        actions: [
+          // Filter button
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: IconButton(
+              icon: Icon(
+                Icons.filter_list,
+                color: _filterRombongan.isNotEmpty ? Colors.yellow : Colors.white,
+              ),
+              onPressed: _showFilterDialog,
+              tooltip: 'Filter Rombongan',
+            ),
+          ),
           Container(
             margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
             decoration: BoxDecoration(
@@ -394,10 +540,9 @@ class _LocationPageState extends State<LocationPage> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.app',
               ),
-              
-              // Marker Layer untuk lokasi jamaah
+                // Marker Layer untuk lokasi jamaah
               MarkerLayer(
-                markers: _jamaahList.map((jamaah) {
+                markers: _getFilteredJamaah().map((jamaah) {
                   return Marker(
                     width: 40,
                     height: 40,
@@ -545,25 +690,18 @@ class _LocationPageState extends State<LocationPage> {
               ),
             ),
         ],
-      ),
-      bottomNavigationBar: BottomNavbarAdmin(
-        currentIndex: 4, // Sesuaikan dengan index menu lokasi
+      ),      bottomNavigationBar: BottomNavbarAdmin(
+        currentIndex: 1, // Lokasi is at index 1
         onTap: (index) {
           switch (index) {
             case 0:
               Navigator.pushNamed(context, '/admin/home');
               break;
             case 1:
-              Navigator.pushNamed(context, '/admin/keuangan');
+              // Already on location page
               break;
             case 2:
               Navigator.pushNamed(context, '/admin/cctv');
-              break;
-            case 3:
-              Navigator.pushNamed(context, '/admin/surat');
-              break;
-            case 4:
-              // Sudah di halaman lokasi
               break;
           }
         },
@@ -760,8 +898,7 @@ class _LocationPageState extends State<LocationPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
+          const SizedBox(height: 8),          Row(
             children: [
               const Icon(
                 Icons.group,
@@ -770,7 +907,7 @@ class _LocationPageState extends State<LocationPage> {
               ),
               const SizedBox(width: 8),
               Text(
-                _selectedJamaah!.groupName,
+                _selectedJamaah!.rombonganName,
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -778,7 +915,7 @@ class _LocationPageState extends State<LocationPage> {
                 ),
               ),
             ],
-          ),          const SizedBox(height: 8),
+          ),const SizedBox(height: 8),
           Row(
             children: [
               const Icon(
@@ -850,6 +987,8 @@ class JamaahLocation {
   final String address;
   final String lastSeen;
   final String groupName;
+  final String? rombonganId;
+  final String rombonganName;
   final LatLng location;
   final String avatarUrl;
   final double accuracy;
@@ -863,6 +1002,8 @@ class JamaahLocation {
     required this.address,
     required this.lastSeen,
     required this.groupName,
+    this.rombonganId,
+    required this.rombonganName,
     required this.location,
     required this.avatarUrl,
     required this.accuracy,

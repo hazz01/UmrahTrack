@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:umrahtrack/data/services/session_manager.dart';
+import 'package:umrahtrack/data/models/rombongan_model.dart';
+import 'package:umrahtrack/data/services/rombongan_service.dart';
 import '../../widgets/bottom_navbar_admin.dart';
 import '../../widgets/travel_verification_guard.dart';
 
@@ -14,6 +16,7 @@ class UserData {
   final String email;
   final String userType;
   final String? travelId;
+  final String? rombonganId;
   final String? gender;
   final DateTime? createdAt;
 
@@ -23,6 +26,7 @@ class UserData {
     required this.email,
     required this.userType,
     this.travelId,
+    this.rombonganId,
     this.gender,
     this.createdAt,
   });
@@ -35,6 +39,7 @@ class UserData {
       email: data['email'] ?? '',
       userType: data['userType'] ?? '',
       travelId: data['travelId'],
+      rombonganId: data['rombonganId'],
       gender: data['gender'],
       createdAt: data['createdAt'] != null 
           ? (data['createdAt'] as Timestamp).toDate() 
@@ -54,8 +59,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
   final TextEditingController _searchController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
-  // Form controllers for adding/editing users
+    // Form controllers for adding/editing users
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -63,12 +67,15 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
   String _searchQuery = '';
   bool _isSelectMode = false;
   List<UserData> _selectedUsers = [];
-  
-  // Filter values
-  String _filterGender = '';
+    // Filter values - remove gender filter
+  String _filterRombongan = '';
   
   // Edit mode
   String? _editingUserId;
+  
+  // Rombongan
+  String? _selectedRombonganId;
+  List<Rombongan> _availableRombongan = [];
     // Current travel user's data
   String? _currentTravelId;
   bool _isLoading = true;
@@ -139,10 +146,11 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
         setState(() {
           _currentTravelId = travelId;
         });
-      }
-
-      // Refresh session when page loads
+      }      // Refresh session when page loads
       await SessionManager.refreshSession();
+
+      // Load rombongan data
+      await _loadRombonganData();
 
       setState(() {
         _isLoading = false;
@@ -156,10 +164,30 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
       });
     }
   }
-
   void _redirectToLogin() {
     Navigator.of(context).pushReplacementNamed('/login');
   }
+
+  Future<void> _loadRombonganData() async {
+    if (_currentTravelId != null) {
+      try {
+        final rombonganSnapshot = await FirebaseFirestore.instance
+            .collection('rombongan')
+            .where('travelId', isEqualTo: _currentTravelId)
+            .where('status', isEqualTo: 'active')
+            .get();
+        
+        setState(() {
+          _availableRombongan = rombonganSnapshot.docs
+              .map((doc) => Rombongan.fromFirestore(doc))
+              .toList();
+        });
+      } catch (e) {
+        print('Error loading rombongan: $e');
+      }
+    }
+  }
+
   Future<void> _handleLogout() async {
     try {
       // Show confirmation dialog
@@ -247,26 +275,25 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
         .where('travelId', isEqualTo: _currentTravelId);
     
     return query.snapshots();
-  }
-
-  List<UserData> _filterUsers(List<UserData> users) {
+  }  List<UserData> _filterUsers(List<UserData> users) {
     return users.where((user) {
       // Search filter
       bool matchesSearch = _searchQuery.isEmpty ||
           user.name.toLowerCase().contains(_searchQuery) ||
           user.email.toLowerCase().contains(_searchQuery);
       
-      // Gender filter
-      bool matchesGender = _filterGender.isEmpty ||
-          (user.gender != null && user.gender!.toLowerCase() == _filterGender.toLowerCase());
+      // Remove gender filter - only keep rombongan filter
       
-      return matchesSearch && matchesGender;
+      // Rombongan filter
+      bool matchesRombongan = _filterRombongan.isEmpty ||
+          (_filterRombongan == 'no_rombongan' && (user.rombonganId == null || user.rombonganId!.isEmpty)) ||
+          (_filterRombongan != 'no_rombongan' && user.rombonganId == _filterRombongan);
+      
+      return matchesSearch && matchesRombongan;
     }).toList();
-  }
-
-  void _clearFilters() {
+  }  void _clearFilters() {
     setState(() {
-      _filterGender = '';
+      _filterRombongan = '';
       _searchController.clear();
       _searchQuery = '';
     });
@@ -351,9 +378,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
       );
 
       // Update display name
-      await userCredential.user!.updateDisplayName(_nameController.text.trim());
-
-      // Create user document in Firestore - automatically assign travel ID from current travel user
+      await userCredential.user!.updateDisplayName(_nameController.text.trim());      // Create user document in Firestore - automatically assign travel ID from current travel user
       final userData = {
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -363,7 +388,17 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
         'uid': userCredential.user!.uid,
       };
 
+      // Add rombongan if selected
+      if (_selectedRombonganId != null && _selectedRombonganId!.isNotEmpty) {
+        userData['rombonganId'] = _selectedRombonganId;
+      }
+
       await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);
+
+      // Update rombongan jamaah count if assigned
+      if (_selectedRombonganId != null && _selectedRombonganId!.isNotEmpty) {
+        await RombonganService.assignJamaahToRombongan(userCredential.user!.uid, _selectedRombonganId!);
+      }
 
       _clearForm();
       _toggleAddDataPopup();
@@ -384,15 +419,32 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
         const SnackBar(content: Text('Harap isi semua field yang diperlukan')),
       );
       return;
-    }
+    }    try {
+      // Get current user data to check rombongan changes
+      final currentUserDoc = await _firestore.collection('users').doc(_editingUserId).get();
+      final currentUserData = currentUserDoc.data() as Map<String, dynamic>;
+      final currentRombonganId = currentUserData['rombonganId'] as String?;
 
-    try {
       final userData = {
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'userType': 'jamaah',
         'travelId': _currentTravelId, // Keep same travel ID
-      };
+      };      // Handle rombongan changes
+      if (_selectedRombonganId != currentRombonganId) {
+        // Remove from old rombongan if exists
+        if (currentRombonganId != null && currentRombonganId.isNotEmpty) {
+          await RombonganService.removeJamaahFromRombongan(_editingUserId!, currentRombonganId);
+        }
+
+        // Add to new rombongan if selected
+        if (_selectedRombonganId != null && _selectedRombonganId!.isNotEmpty) {
+          userData['rombonganId'] = _selectedRombonganId;
+          await RombonganService.assignJamaahToRombongan(_editingUserId!, _selectedRombonganId!);
+        }
+      } else if (_selectedRombonganId != null && _selectedRombonganId!.isNotEmpty) {
+        userData['rombonganId'] = _selectedRombonganId;
+      }
 
       await _firestore.collection('users').doc(_editingUserId).update(userData);
 
@@ -408,11 +460,11 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
       );
     }
   }
-
   void _clearForm() {
     _nameController.clear();
     _emailController.clear();
     _passwordController.clear();
+    _selectedRombonganId = null;
     _editingUserId = null;
   }
 
@@ -420,6 +472,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
     _editingUserId = user.uid;
     _nameController.text = user.name;
     _emailController.text = user.email;
+    _selectedRombonganId = user.rombonganId;
     _toggleAddDataPopup();
   }
 
@@ -681,14 +734,32 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
       ),
     );
   }
-
-  Widget _buildFilterChips() {
-    List<Widget> activeFilters = [];
+  Widget _buildFilterChips() {    List<Widget> activeFilters = [];
     
-    if (_filterGender.isNotEmpty) {
-      activeFilters.add(_buildFilterChip('Gender: $_filterGender', () {
+    // Remove gender filter - only keep rombongan filter
+    if (_filterRombongan.isNotEmpty) {
+      String rombonganName = 'Unknown';
+      if (_filterRombongan == 'no_rombongan') {
+        rombonganName = 'Tanpa Rombongan';
+      } else {
+        final rombongan = _availableRombongan.firstWhere(
+          (r) => r.id == _filterRombongan, 
+          orElse: () => Rombongan(
+            id: '',
+            namaRombongan: 'Unknown',
+            deskripsi: '',
+            travelId: '',
+            kapasitas: 0,
+            tanggalBerangkat: DateTime.now(),
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          )
+        );
+        rombonganName = rombongan.namaRombongan;
+      }
+      activeFilters.add(_buildFilterChip('Rombongan: $rombonganName', () {
         setState(() {
-          _filterGender = '';
+          _filterRombongan = '';
         });
       }));
     }
@@ -700,7 +771,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), // Add more bottom padding for spacing
       child: Row(
         children: [
           Container(
@@ -850,16 +921,12 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF636363),
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildUserTypeChip(user.userType),
-                const SizedBox(width: 8),
-                if (user.travelId != null)
-                  _buildTravelIdChip(user.travelId!),
-              ],
-            ),
+            ),            const SizedBox(height: 8),            
+            // Only show rombongan chip
+            if (user.rombonganId != null)
+              _buildRombonganChip(user.rombonganId!)
+            else
+              _buildNoRombonganChip(),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -1025,7 +1092,6 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
       ),
     );
   }
-
   Widget _buildTravelIdChip(String travelId) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1039,6 +1105,54 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
             fontWeight: FontWeight.w500,
             fontSize: 14,
             color: Color(0xFF01579B)),
+      ),
+    );
+  }
+
+  Widget _buildRombonganChip(String rombonganId) {
+    final rombongan = _availableRombongan.firstWhere(
+      (r) => r.id == rombonganId,
+      orElse: () => Rombongan(
+        id: '',
+        namaRombongan: 'Unknown',
+        deskripsi: '',
+        travelId: '',
+        kapasitas: 0,
+        tanggalBerangkat: DateTime.now(),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E8),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        rombongan.namaRombongan,
+        style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            color: Color(0xFF2E7D32)),
+      ),
+    );
+  }
+
+  Widget _buildNoRombonganChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Text(
+        'Tanpa Rombongan',
+        style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            color: Color(0xFFE65100)),
       ),
     );
   }
@@ -1123,13 +1237,12 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
           color: Colors.black.withOpacity(0.2),
           child: GestureDetector(
             onTap: () {}, // Prevent tap from closing modal
-            child: StatefulBuilder(
-              builder: (BuildContext context, StateSetter setModalState) {
-                String localGender = _filterGender;
+            child: StatefulBuilder(              builder: (BuildContext context, StateSetter setModalState) {
+                String localRombongan = _filterRombongan;
 
                 return DraggableScrollableSheet(
-                  initialChildSize: 0.4,
-                  maxChildSize: 0.7,
+                  initialChildSize: 0.5, // Reduced since removing gender filter
+                  maxChildSize: 0.8,
                   minChildSize: 0.3,
                   builder: (context, scrollController) {
                     return Container(
@@ -1181,6 +1294,8 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                             ],
                           ),
                           const SizedBox(height: 23),
+                          
+                          // Rombongan Filter only
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 24, vertical: 16),
@@ -1197,7 +1312,7 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                 const Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
-                                    'Gender',
+                                    'Rombongan',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
@@ -1210,10 +1325,10 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                   children: [
                                     Radio<String>(
                                       value: '',
-                                      groupValue: localGender,
+                                      groupValue: localRombongan,
                                       onChanged: (value) {
                                         setModalState(() {
-                                          localGender = value!;
+                                          localRombongan = value!;
                                         });
                                       },
                                       activeColor: const Color(0xFF1658B3),
@@ -1224,33 +1339,38 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                 Row(
                                   children: [
                                     Radio<String>(
-                                      value: 'Laki-laki',
-                                      groupValue: localGender,
+                                      value: 'no_rombongan',
+                                      groupValue: localRombongan,
                                       onChanged: (value) {
                                         setModalState(() {
-                                          localGender = value!;
+                                          localRombongan = value!;
                                         });
                                       },
                                       activeColor: const Color(0xFF1658B3),
                                     ),
-                                    const Text('Laki-laki'),
+                                    const Text('Tanpa Rombongan'),
                                   ],
                                 ),
-                                Row(
+                                ..._availableRombongan.map((rombongan) => Row(
                                   children: [
                                     Radio<String>(
-                                      value: 'Perempuan',
-                                      groupValue: localGender,
+                                      value: rombongan.id,
+                                      groupValue: localRombongan,
                                       onChanged: (value) {
                                         setModalState(() {
-                                          localGender = value!;
+                                          localRombongan = value!;
                                         });
                                       },
                                       activeColor: const Color(0xFF1658B3),
                                     ),
-                                    const Text('Perempuan'),
+                                    Expanded(
+                                      child: Text(
+                                        rombongan.namaRombongan,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                   ],
-                                ),
+                                )),
                               ],
                             ),
                           ),
@@ -1266,10 +1386,9 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(84),
                                     ),
-                                  ),
-                                  onPressed: () {
+                                  ),                                  onPressed: () {
                                     setState(() {
-                                      _filterGender = localGender;
+                                      _filterRombongan = localRombongan;
                                     });
                                     _toggleFilterPopup();
                                   },
@@ -1292,14 +1411,14 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(84),
                                     ),
-                                  ),
-                                  onPressed: () {
+                                  ),                                  onPressed: () {
                                     setModalState(() {
-                                      localGender = '';
+                                      localRombongan = '';
                                     });
                                     setState(() {
-                                      _filterGender = '';
+                                      _filterRombongan = '';
                                     });
+                                    _toggleFilterPopup();
                                   },
                                   child: const Text(
                                     'Reset',
@@ -1436,6 +1555,58 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                                     fontSize: 12.0,
                                     color: Colors.grey.shade500,
                                   ),
+                                ),                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          
+                          // Rombongan Dropdown
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.grey.shade300,
+                                width: 1,
+                              ),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Rombongan',
+                                  style: TextStyle(
+                                    fontSize: 16.0,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 8.0),
+                                DropdownButtonFormField<String>(
+                                  value: _selectedRombonganId,
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    hintText: 'Pilih rombongan (opsional)',
+                                  ),
+                                  items: [
+                                    const DropdownMenuItem<String>(
+                                      value: null,
+                                      child: Text('Tidak ada rombongan'),
+                                    ),
+                                    ..._availableRombongan.map((rombongan) => DropdownMenuItem<String>(
+                                      value: rombongan.id,
+                                      child: Text(
+                                        '${rombongan.namaRombongan} (${rombongan.jumlahJamaah}/${rombongan.kapasitas})',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    )),
+                                  ],
+                                  onChanged: (value) {
+                                    setModalState(() {
+                                      _selectedRombonganId = value;
+                                    });
+                                  },
                                 ),
                               ],
                             ),

@@ -5,6 +5,7 @@ import 'package:umrahtrack/providers/location_provider.dart';
 import 'package:umrahtrack/presentation/pages/login_page.dart';
 import 'package:umrahtrack/presentation/pages/travel_registration_page.dart';
 import 'package:umrahtrack/presentation/pages/admin/kelola_jamaah_page.dart';
+import 'package:umrahtrack/presentation/pages/admin/kelola_rombongan_page.dart';
 import 'package:umrahtrack/presentation/pages/admin/lokasi_person.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_home.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_lokasi.dart';
@@ -55,19 +56,18 @@ class UmrahTrackApp extends StatelessWidget {
       home: const AuthWrapper(),      routes: {
         '/login': (context) => const LoginPage(),
         '/travel-registration': (context) => const TravelRegistrationPage(),
-        '/kelola_jamaah': (context) => const KelolaWargaPage(),
-        '/admin/home': (context) => const KelolaWargaPage(), // Main admin page
+        '/kelola_jamaah': (context) => const KelolaWargaPage(),        '/admin/home': (context) => const KelolaWargaPage(), // Main admin page
+        '/admin/rombongan': (context) => const KelolaRombonganPage(),
         '/admin/lokasi': (context) => const LocationPage(),
         '/jamaah/home': (context) => const JamaahHomePage(),        '/jamaah/lokasi': (context) => const JamaahLokasiPage(),
         '/unverified_account': (context) => const UnverifiedAccountPage(),
         '/test-geolocator': (context) => const TestLocationPage(),
         '/test-firebase-realtime': (context) => const TestFirebaseRealtimePage(),
       },onGenerateRoute: (RouteSettings settings) {
-        // Handle specific missing admin routes
-        switch (settings.name) {
-          case '/admin/cctv':
+        // Handle specific missing admin routes 
+        switch (settings.name) {          case '/admin/cctv':
             return MaterialPageRoute(
-              builder: (context) => _buildPlaceholderPage('Rombongan', 'Fitur sedang dalam pengembangan'),
+              builder: (context) => const KelolaRombonganPage(),
             );
           case '/admin/surat':
             return MaterialPageRoute(
