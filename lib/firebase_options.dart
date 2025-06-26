@@ -48,6 +48,7 @@ class DefaultFirebaseOptions {
     authDomain: 'umrahtrack-hazz.firebaseapp.com',
     storageBucket: 'umrahtrack-hazz.firebasestorage.app',
     measurementId: 'G-TYY3DSGS8D',
+    databaseURL: 'https://umrahtrack-hazz-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -56,6 +57,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1036143219493',
     projectId: 'umrahtrack-hazz',
     storageBucket: 'umrahtrack-hazz.firebasestorage.app',
+    databaseURL: 'https://umrahtrack-hazz-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -65,6 +67,7 @@ class DefaultFirebaseOptions {
     projectId: 'umrahtrack-hazz',
     storageBucket: 'umrahtrack-hazz.firebasestorage.app',
     iosBundleId: 'com.example.umrahtrack',
+    databaseURL: 'https://umrahtrack-hazz-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -74,6 +77,7 @@ class DefaultFirebaseOptions {
     projectId: 'umrahtrack-hazz',
     storageBucket: 'umrahtrack-hazz.firebasestorage.app',
     iosBundleId: 'com.example.umrahtrack',
+    databaseURL: 'https://umrahtrack-hazz-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
@@ -84,5 +88,6 @@ class DefaultFirebaseOptions {
     authDomain: 'umrahtrack-hazz.firebaseapp.com',
     storageBucket: 'umrahtrack-hazz.firebasestorage.app',
     measurementId: 'G-HJKJLKMCP7',
+    databaseURL: 'https://umrahtrack-hazz-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 }

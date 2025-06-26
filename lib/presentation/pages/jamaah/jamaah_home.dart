@@ -315,14 +315,67 @@ class _InputTravelIDWidgetState extends State<InputTravelIDWidget> {
   }
 }
 
-class InfoJamaahTravel extends StatelessWidget {
+class InfoJamaahTravel extends StatefulWidget {
   final Map<String, dynamic> userData;
   final Map<String, dynamic>? travelData;
 
   const InfoJamaahTravel({super.key, required this.userData, this.travelData});
+
+  @override
+  State<InfoJamaahTravel> createState() => _InfoJamaahTravelState();
+}
+
+class _InfoJamaahTravelState extends State<InfoJamaahTravel> {
+  DateTime? _departureDate;
+  bool _isLoadingDeparture = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDepartureDate();
+  }
+
+  Future<void> _loadDepartureDate() async {
+    try {
+      if (widget.userData['rombonganId'] != null) {
+        // Get departure date from rombongan
+        final rombonganDoc = await FirebaseFirestore.instance
+            .collection('rombongan')
+            .doc(widget.userData['rombonganId'])
+            .get();
+        
+        if (rombonganDoc.exists) {
+          final rombonganData = rombonganDoc.data() as Map<String, dynamic>;
+          final timestamp = rombonganData['tanggalBerangkat'] as Timestamp?;
+          if (timestamp != null) {
+            _departureDate = timestamp.toDate();
+          }
+        }
+      }
+      
+      // Fallback to default date if no rombongan or no date found
+      _departureDate ??= DateTime(2025, 7, 1);
+      
+      setState(() {
+        _isLoadingDeparture = false;
+      });
+    } catch (e) {
+      print('Error loading departure date: $e');
+      // Fallback to default date
+      setState(() {
+        _departureDate = DateTime(2025, 7, 1);
+        _isLoadingDeparture = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final targetDate = DateTime(2025, 7, 1);
+    if (_isLoadingDeparture) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final targetDate = _departureDate!;
     final now = DateTime.now();
     final daysLeft = targetDate.difference(now).inDays;
     
@@ -395,9 +448,8 @@ class InfoJamaahTravel extends StatelessWidget {
                                 color: Colors.white70,
                                 fontSize: 14,
                               ),
-                            ),
-                            Text(
-                              userData['name'] ?? 'Jamaah',
+                            ),                            Text(
+                              widget.userData['name'] ?? 'Jamaah',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 22,
@@ -419,9 +471,8 @@ class InfoJamaahTravel extends StatelessWidget {
                     child: Row(
                       children: [
                         const Icon(Icons.flight_takeoff, color: Colors.white, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Travel ID: ${userData['travelId'] ?? 'N/A'}',
+                        const SizedBox(width: 8),                        Text(
+                          'Travel ID: ${widget.userData['travelId'] ?? 'N/A'}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -436,9 +487,8 @@ class InfoJamaahTravel extends StatelessWidget {
             ),
             
             const SizedBox(height: 24),
-            
-            // Travel Info Card
-            if (travelData != null) ...[
+              // Travel Info Card
+            if (widget.travelData != null) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -481,10 +531,9 @@ class InfoJamaahTravel extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    _buildInfoRow(Icons.apartment, 'Nama Travel', travelData!['name'] ?? 'N/A'),
-                    _buildInfoRow(Icons.phone, 'Kontak', travelData!['phone'] ?? 'N/A'),
-                    _buildInfoRow(Icons.email, 'Email', travelData!['email'] ?? 'N/A'),
+                    const SizedBox(height: 16),                    _buildInfoRow(Icons.apartment, 'Nama Travel', widget.travelData!['name'] ?? 'N/A'),
+                    _buildInfoRow(Icons.phone, 'Kontak', widget.travelData!['phone'] ?? 'N/A'),
+                    _buildInfoRow(Icons.email, 'Email', widget.travelData!['email'] ?? 'N/A'),
                   ],
                 ),
               ),

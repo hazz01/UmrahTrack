@@ -1,50 +1,11 @@
-// main.dart - Complete Firebase Auth Implementation with Session Management
-
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:umrahtrack/data/services/session_manager.dart';
-import 'package:umrahtrack/firebase_options.dart';
 import 'package:umrahtrack/presentation/pages/admin/kelola_jamaah_page.dart';
 import 'package:umrahtrack/presentation/pages/jamaah/jamaah_home.dart';
 import 'package:umrahtrack/presentation/pages/travel_registration_page.dart';
 import 'package:umrahtrack/presentation/pages/unverified_account_page.dart';
-
-// Firebase configuration - Replace with your own config
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Travel App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Roboto',
-      ),
-      // Use AuthWrapper to handle authentication state
-      home: const AuthWrapper(),      routes: {
-        '/login': (context) => const LoginPage(),
-        '/admin/home': (context) => const AdminHomePage(),
-        '/jamaah/home': (context) => const JamaahHomePage(),
-        '/kelola_jamaah': (context) => const KelolaWargaPage(),
-        '/unverified_account': (context) => const UnverifiedAccountPage(),
-      },
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
 
 // Auth Wrapper to handle authentication state
 class AuthWrapper extends StatelessWidget {
@@ -57,14 +18,48 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
+            backgroundColor: Color(0xFF1658B3),
             body: Center(
-              child: CircularProgressIndicator(),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.mosque,
+                      size: 60,
+                      color: Color(0xFF1658B3),
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  Text(
+                    'UmrahTrack',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Manajemen Perjalanan Umrah',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  SizedBox(height: 40),
+                  CircularProgressIndicator(
+                    color: Colors.white,
+                  ),
+                ],
+              ),
             ),
           );
         }
 
         final isAuthenticated = snapshot.data ?? false;
-        
         if (isAuthenticated) {
           return const UserTypeRouter();
         } else {
@@ -92,7 +87,7 @@ class AuthWrapper extends StatelessWidget {
       return false;
     }
 
-    // Refresh session to extend for another 24 hours
+    // Refresh session to extend for another 14 days
     await SessionManager.refreshSession();
     return true;
   }
@@ -121,7 +116,8 @@ class UserTypeRouter extends StatelessWidget {
           SessionManager.logout();
           return const LoginPage();
         }
-          final userType = userData['userType'] ?? '';
+          
+        final userType = userData['userType'] ?? '';
         
         // For travel users, check appStatus for verification
         if (userType == 'travel') {
@@ -207,21 +203,41 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   
   late AnimationController _animationController;
+  late AnimationController _logoController;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _slideAnimation;
+  late Animation<double> _logoAnimation;
 
   // Firebase instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
+    
+    _logoController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+    
+    _slideAnimation = Tween<double>(begin: 50.0, end: 0.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
+    
+    _logoAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
+    );
+    
+    _logoController.forward();
     _animationController.forward();
     
     // Generate Travel ID if starting in register mode with travel user selected
@@ -231,15 +247,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       }
     });
   }
+  
   @override
   void dispose() {
     _animationController.dispose();
+    _logoController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
     super.dispose();
   }
-  void _toggleMode() {
+    void _toggleMode() {
+    // Jamaah users cannot register, only travel users can
+    if (!isTravelUser) return;
+    
     setState(() {
       isLogin = !isLogin;
       // Reset travel ID when switching modes
@@ -253,13 +274,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       _generateTravelIdForPreview();
     }
   }
-
   void _toggleUserType(bool isTravelSelected) {
     setState(() {
       isTravelUser = isTravelSelected;
       // Reset travel ID when switching user types
       if (!isTravelSelected) {
         _generatedTravelId = null;
+        // Force login mode for jamaah users
+        isLogin = true;
       }
     });
     
@@ -295,7 +317,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Error'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Error'),
+            ],
+          ),
           content: Text(message),
           actions: [
             TextButton(
@@ -313,7 +342,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Success'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 8),
+              Text('Berhasil'),
+            ],
+          ),
           content: Text(message),
           actions: [
             TextButton(
@@ -344,7 +380,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       DocumentSnapshot userDoc = await _firestore
           .collection('users')
           .doc(userCredential.user!.uid)
-          .get();      if (userDoc.exists) {
+          .get();
+          
+      if (userDoc.exists) {
         Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
         String userType = userData['userType'] ?? '';
 
@@ -363,7 +401,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           }
         }
 
-        // Save session data with 24-hour expiration
+        // Save session data with 14-day expiration
         await SessionManager.saveLoginSession(
           userId: userCredential.user!.uid,
           userType: userType,
@@ -396,56 +434,36 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       });
     }
   }
+  
   Future<bool> _isTravelIdUnique(String travelId) async {
-    final QuerySnapshot result = await _firestore
-        .collection('users')
-        .where('travelId', isEqualTo: travelId)
-        .limit(1)
-        .get();
-    
-    return result.docs.isEmpty;
+    try {
+      final query = await _firestore
+          .collection('users')
+          .where('travelId', isEqualTo: travelId)
+          .get();
+      return query.docs.isEmpty;
+    } catch (e) {
+      print('Error checking travel ID uniqueness: $e');
+      return false;
+    }
   }
+
   Future<String> _generateNextTravelId() async {
     try {
-      // Get all travel users - simpler query that doesn't require composite index
-      final QuerySnapshot result = await _firestore
-          .collection('users')
-          .where('userType', isEqualTo: 'travel')
-          .get();
-      
-      // Extract existing numbers and find the highest one
-      int highestNumber = 10; // Start from BS811 (11-1 = 10)
-      
-      for (var doc in result.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final travelId = data['travelId'] as String?;
-        
-        // Check if it matches BS8xx pattern
-        if (travelId != null && 
-            travelId.startsWith('BS8') && 
-            travelId.length == 5) {
-          final numberPart = travelId.substring(3); // Get the last 2 digits
-          final number = int.tryParse(numberPart);
-          if (number != null && number > highestNumber) {
-            highestNumber = number;
-          }
+      for (int i = 1; i <= 9999; i++) {
+        String travelId = 'TR${i.toString().padLeft(2, '0')}';
+        bool isUnique = await _isTravelIdUnique(travelId);
+        if (isUnique) {
+          return travelId;
         }
       }
-      
-      // Generate next Travel ID
-      final nextNumber = highestNumber + 1;
-      final nextTravelId = 'BS8${nextNumber.toString().padLeft(2, '0')}';
-      
-      // Ensure it doesn't exceed BS899
-      if (nextNumber > 99) {
-        throw Exception('Travel ID limit reached. Maximum is BS899.');
-      }
-      
-      return nextTravelId;
+      throw Exception('No available Travel ID found');
     } catch (e) {
-      throw Exception('Error generating Travel ID: $e');
+      throw Exception('Failed to generate Travel ID: $e');
     }
-  }Future<void> _handleRegister() async {
+  }
+
+  Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -455,7 +473,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     try {
       String? generatedTravelId;
       
-      // Use pre-generated Travel ID for travel users, or generate new one if not available
+      // Generate Travel ID for travel users
       if (isTravelUser) {
         try {
           generatedTravelId = _generatedTravelId ?? await _generateNextTravelId();
@@ -485,7 +503,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         'createdAt': FieldValue.serverTimestamp(),
         'uid': userCredential.user!.uid,
       };
-        // Add travel ID for travel users (but keep registration status as incomplete)
+        
+      // Add travel ID for travel users (but keep registration status as incomplete)
       if (isTravelUser && generatedTravelId != null) {
         userData['travelId'] = generatedTravelId;
         userData['registrationStatus'] = 'incomplete'; // They need to complete full registration
@@ -493,10 +512,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       }
 
       // Save user data to Firestore
-      await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);      // For travel users, redirect to travel registration form
+      await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);
+      
+      // For travel users, redirect to travel registration form
       if (isTravelUser) {
         _showSuccessDialog('Akun berhasil dibuat!\n\nTravel ID Anda: $generatedTravelId\n\nSilakan lengkapi registrasi travel Anda.');
-          // Clear form and navigate to travel registration
+          
+        // Clear form and navigate to travel registration
         _emailController.clear();
         _passwordController.clear();
         _nameController.clear();
@@ -505,7 +527,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         // Navigate to travel registration page
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const TravelRegistrationPage()),
-        );      } else {
+        );
+      } else {
         _showSuccessDialog('Registrasi berhasil! Silakan login.');
         
         // Clear form and switch to login mode
@@ -531,23 +554,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   String _getAuthErrorMessage(String code) {
     switch (code) {
       case 'user-not-found':
-        return 'No user found for that email.';
+        return 'Tidak ada pengguna dengan email tersebut.';
       case 'wrong-password':
-        return 'Wrong password provided.';
+        return 'Password yang dimasukkan salah.';
       case 'invalid-email':
-        return 'The email address is not valid.';
+        return 'Format email tidak valid.';
       case 'user-disabled':
-        return 'This user account has been disabled.';
+        return 'Akun pengguna ini telah dinonaktifkan.';
       case 'weak-password':
-        return 'The password provided is too weak.';
+        return 'Password terlalu lemah.';
       case 'email-already-in-use':
-        return 'The account already exists for that email.';
+        return 'Email sudah digunakan oleh akun lain.';
       case 'invalid-credential':
-        return 'Invalid email or password.';
+        return 'Email atau password tidak valid.';
       case 'too-many-requests':
-        return 'Too many failed attempts. Please try again later.';
+        return 'Terlalu banyak percobaan gagal. Silakan coba lagi nanti.';
       default:
-        return 'Authentication failed. Please try again.';
+        return 'Autentikasi gagal. Silakan coba lagi.';
     }
   }
 
@@ -561,29 +584,30 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter your email';
+      return 'Silakan masukkan email Anda';
     }
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-      return 'Please enter a valid email';
+      return 'Silakan masukkan email yang valid';
     }
     return null;
   }
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter your password';
+      return 'Silakan masukkan password Anda';
     }
     if (value.length < 6) {
-      return 'Password must be at least 6 characters';
+      return 'Password minimal 6 karakter';
     }
     return null;
   }
+  
   String? _validateName(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter your name';
+      return 'Silakan masukkan nama Anda';
     }
     if (value.trim().length < 2) {
-      return 'Name must be at least 2 characters';
+      return 'Nama minimal 2 karakter';
     }
     return null;
   }
@@ -594,13 +618,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
-              Color(0xFF1E3A8A), // Dark blue
-              Color(0xFF3B82F6), // Medium blue
-              Color(0xFF60A5FA), // Light blue
+              Color(0xFF1658B3), // Primary blue
+              Color(0xFF0F4C81), // Darker blue
+              Color(0xFF083F69), // Darkest blue
             ],
+            stops: [0.0, 0.7, 1.0],
           ),
         ),
         child: SafeArea(
@@ -613,32 +638,64 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               ),
               child: Column(
                 children: [
-                  // Header with logo
+                  // Header with logo and app name
                   SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.25,
+                    height: MediaQuery.of(context).size.height * 0.35,
                     child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'TravelApp',
-                            style: TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w300,
-                              color: Colors.white,
-                              letterSpacing: 2,
+                      child: AnimatedBuilder(
+                        animation: _logoAnimation,
+                        builder: (context, child) {
+                          return Transform.scale(
+                            scale: _logoAnimation.value,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // App Logo
+                                Container(
+                                  width: 100,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 10),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.mosque,
+                                    size: 60,
+                                    color: Color(0xFF1658B3),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                
+                                // App Name
+                                const Text(
+                                  'UmrahTrack',
+                                  style: TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Manajemen Perjalanan Umrah',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontWeight: FontWeight.w300,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'by ${isTravelUser ? 'Travel' : 'Jamaah'} Service',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w300,
-                            ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -647,7 +704,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   Container(
                     width: double.infinity,
                     constraints: BoxConstraints(
-                      minHeight: MediaQuery.of(context).size.height * 0.75,
+                      minHeight: MediaQuery.of(context).size.height * 0.65,
                     ),
                     decoration: const BoxDecoration(
                       color: Colors.white,
@@ -656,548 +713,456 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         topRight: Radius.circular(30),
                       ),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // User type selector
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () => _toggleUserType(true),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: isTravelUser ? const Color(0xFF3B82F6) : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(25),
-                                        ),
-                                        child: Text(
-                                          'User Travel',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: isTravelUser ? Colors.white : Colors.grey[600],
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
+                    child: AnimatedBuilder(
+                      animation: _fadeAnimation,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(0, _slideAnimation.value),
+                          child: Opacity(
+                            opacity: _fadeAnimation.value,
+                            child: Padding(
+                              padding: const EdgeInsets.all(32.0),
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // User type selector
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(25),
                                       ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () => _toggleUserType(false),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: !isTravelUser ? const Color(0xFF3B82F6) : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(25),
-                                        ),
-                                        child: Text(
-                                          'User Jamaah',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: !isTravelUser ? Colors.white : Colors.grey[600],
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            const SizedBox(height: 32),
-                            
-                            // Login/Register toggle
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    if (!isLogin) _toggleMode();
-                                  },
-                                  child: Text(
-                                    'Login',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: isLogin ? FontWeight.w600 : FontWeight.w400,
-                                      color: isLogin ? const Color(0xFF3B82F6) : Colors.grey[600],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 32),
-                                GestureDetector(
-                                  onTap: () {
-                                    if (isLogin) _toggleMode();
-                                  },
-                                  child: Text(
-                                    'Register',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: !isLogin ? FontWeight.w600 : FontWeight.w400,
-                                      color: !isLogin ? const Color(0xFF3B82F6) : Colors.grey[600],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            
-                            const SizedBox(height: 32),
-                            
-                            // Form fields
-                            FadeTransition(
-                              opacity: _fadeAnimation,
-                              child: Column(
-                                children: [
-                                  // Email field
-                                  TextFormField(
-                                    controller: _emailController,
-                                    keyboardType: TextInputType.emailAddress,
-                                    validator: _validateEmail,
-                                    decoration: InputDecoration(
-                                      labelText: 'Email',
-                                      prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF3B82F6)),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(color: Colors.grey[300]!),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
-                                      ),
-                                      errorBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: Colors.red, width: 1),
-                                      ),
-                                    ),
-                                  ),
-                                  
-                                  const SizedBox(height: 16),
-                                    // Name field (only for register)
-                                  if (!isLogin) ...[
-                                    TextFormField(
-                                      controller: _nameController,
-                                      validator: _validateName,
-                                      decoration: InputDecoration(
-                                        labelText: 'Nama',
-                                        prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF3B82F6)),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: Colors.grey[300]!),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
-                                        ),
-                                        errorBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: const BorderSide(color: Colors.red, width: 1),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                      // Travel ID info (only for travel users in register mode)
-                                    if (isTravelUser) ...[
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue[50],
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: const Color(0xFF3B82F6), width: 1),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            Row(
-                                              children: [
-                                                const Icon(Icons.card_membership, color: Color(0xFF3B82F6)),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [                                                      const Text(
-                                                        'Travel ID Anda',
-                                                        style: TextStyle(
-                                                          fontWeight: FontWeight.w600,
-                                                          color: Color(0xFF3B82F6),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      if (_isGeneratingTravelId)
-                                                        const Text(
-                                                          'Auto-generated dengan id [generating...]',
-                                                          style: TextStyle(
-                                                            fontSize: 13,
-                                                            color: Color(0xFF1E40AF),
-                                                          ),
-                                                        )
-                                                      else if (_generatedTravelId != null)
-                                                        Text(
-                                                          'Auto-generated dengan id $_generatedTravelId',
-                                                          style: const TextStyle(
-                                                            fontSize: 13,
-                                                            color: Color(0xFF1E40AF),
-                                                            fontWeight: FontWeight.w500,
-                                                          ),
-                                                        )
-                                                      else
-                                                        const Text(
-                                                          'Auto-generated dengan id [akan dibuat]',
-                                                          style: TextStyle(
-                                                            fontSize: 13,
-                                                            color: Color(0xFF1E40AF),
-                                                          ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            if (_generatedTravelId != null) ...[
-                                              const SizedBox(height: 8),
-                                              Container(
-                                                padding: const EdgeInsets.all(8),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () => _toggleUserType(true),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(vertical: 14),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.green[50],
-                                                  borderRadius: BorderRadius.circular(6),
-                                                  border: Border.all(color: Colors.green[300]!, width: 1),
+                                                  color: isTravelUser ? const Color(0xFF1658B3) : Colors.transparent,
+                                                  borderRadius: BorderRadius.circular(25),
+                                                  boxShadow: isTravelUser ? [
+                                                    BoxShadow(
+                                                      color: const Color(0xFF1658B3).withOpacity(0.3),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 2),
+                                                    ),
+                                                  ] : null,
                                                 ),
                                                 child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
                                                   children: [
-                                                    Icon(Icons.check_circle_outline, size: 16, color: Colors.green[600]),
-                                                    const SizedBox(width: 6),
-                                                    Expanded(
-                                                      child: Text(
-                                                        'Travel ID ini akan digunakan untuk registrasi Anda',
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          color: Colors.green[700],
-                                                        ),
+                                                    Icon(
+                                                      Icons.business,
+                                                      color: isTravelUser ? Colors.white : Colors.grey[600],
+                                                      size: 20,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      'Travel',
+                                                      textAlign: TextAlign.center,
+                                                      style: TextStyle(
+                                                        color: isTravelUser ? Colors.white : Colors.grey[600],
+                                                        fontWeight: FontWeight.w600,
+                                                        fontSize: 16,
                                                       ),
                                                     ),
                                                   ],
                                                 ),
                                               ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                    ],
-                                  ],
-                                  
-                                  // Password field
-                                  TextFormField(
-                                    controller: _passwordController,
-                                    obscureText: !isPasswordVisible,
-                                    validator: _validatePassword,
-                                    decoration: InputDecoration(
-                                      labelText: 'Password',
-                                      prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF3B82F6)),
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                                          color: Colors.grey[600],
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            isPasswordVisible = !isPasswordVisible;
-                                          });
-                                        },
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(color: Colors.grey[300]!),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
-                                      ),
-                                      errorBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: Colors.red, width: 1),
-                                      ),
-                                    ),
-                                  ),
-                                  
-                                  const SizedBox(height: 24),
-  
-                                  // Submit button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 50,
-                                    child: ElevatedButton(
-                                      onPressed: isLoading ? null : _handleSubmit,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF3B82F6),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(25),
-                                        ),
-                                        elevation: 2,
-                                      ),
-                                      child: isLoading
-                                          ? const SizedBox(
-                                              height: 20,
-                                              width: 20,
-                                              child: CircularProgressIndicator(
-                                                color: Colors.white,
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : Text(
-                                              isLogin ? 'Login' : 'Register',
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () => _toggleUserType(false),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                                decoration: BoxDecoration(
+                                                  color: !isTravelUser ? const Color(0xFF1658B3) : Colors.transparent,
+                                                  borderRadius: BorderRadius.circular(25),
+                                                  boxShadow: !isTravelUser ? [
+                                                    BoxShadow(
+                                                      color: const Color(0xFF1658B3).withOpacity(0.3),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 2),
+                                                    ),
+                                                  ] : null,
+                                                ),
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.person,
+                                                      color: !isTravelUser ? Colors.white : Colors.grey[600],
+                                                      size: 20,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      'Jamaah',
+                                                      textAlign: TextAlign.center,
+                                                      style: TextStyle(
+                                                        color: !isTravelUser ? Colors.white : Colors.grey[600],
+                                                        fontWeight: FontWeight.w600,
+                                                        fontSize: 16,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ),
-                                    ),
-                                  ),
-                                  
-                                  const SizedBox(height: 16),
-                                  
-                                  // Toggle text
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
-                                        style: TextStyle(color: Colors.grey[600]),
+                                          ),
+                                        ],
                                       ),
-                                      GestureDetector(
-                                        onTap: _toggleMode,
-                                        child: Text(
-                                          isLogin ? 'Register' : 'Login',
-                                          style: const TextStyle(
-                                            color: Color(0xFF3B82F6),
-                                            fontWeight: FontWeight.w600,
+                                    ),
+                                    
+                                    const SizedBox(height: 40),
+                                      // Login/Register toggle (only for travel users)
+                                    if (isTravelUser) Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () {
+                                            if (!isLogin) _toggleMode();
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: isLogin ? const Color(0xFF1658B3).withOpacity(0.1) : Colors.transparent,
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              'Masuk',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: isLogin ? FontWeight.w700 : FontWeight.w500,
+                                                color: isLogin ? const Color(0xFF1658B3) : Colors.grey[600],
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  
-                                  const SizedBox(height: 24),
-                                ],
+                                        const SizedBox(width: 40),
+                                        GestureDetector(
+                                          onTap: () {
+                                            if (isLogin) _toggleMode();
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: !isLogin ? const Color(0xFF1658B3).withOpacity(0.1) : Colors.transparent,
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              'Daftar',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: !isLogin ? FontWeight.w700 : FontWeight.w500,
+                                                color: !isLogin ? const Color(0xFF1658B3) : Colors.grey[600],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    
+                                    const SizedBox(height: 40),
+                                    
+                                    // Form fields
+                                    Column(
+                                      children: [
+                                        // Email field
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.05),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: TextFormField(
+                                            controller: _emailController,
+                                            keyboardType: TextInputType.emailAddress,
+                                            validator: _validateEmail,
+                                            decoration: InputDecoration(
+                                              labelText: 'Email',
+                                              hintText: 'Masukkan email Anda',
+                                              prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF1658B3)),
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                                borderSide: BorderSide.none,
+                                              ),
+                                              filled: true,
+                                              fillColor: Colors.grey[50],
+                                              focusedBorder: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                                borderSide: const BorderSide(color: Color(0xFF1658B3), width: 2),
+                                              ),
+                                              errorBorder: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                                borderSide: const BorderSide(color: Colors.red, width: 1),
+                                              ),
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                            ),
+                                          ),
+                                        ),
+                                        
+                                        const SizedBox(height: 20),
+                                            // Name field (only for travel register)
+                                        if (!isLogin && isTravelUser) ...[
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withOpacity(0.05),
+                                                  blurRadius: 10,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: TextFormField(
+                                              controller: _nameController,
+                                              validator: _validateName,
+                                              decoration: InputDecoration(
+                                                labelText: 'Nama Lengkap',
+                                                hintText: 'Masukkan nama lengkap Anda',
+                                                prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF1658B3)),
+                                                border: OutlineInputBorder(
+                                                  borderRadius: BorderRadius.circular(16),
+                                                  borderSide: BorderSide.none,
+                                                ),
+                                                filled: true,
+                                                fillColor: Colors.grey[50],
+                                                focusedBorder: OutlineInputBorder(
+                                                  borderRadius: BorderRadius.circular(16),
+                                                  borderSide: const BorderSide(color: Color(0xFF1658B3), width: 2),
+                                                ),
+                                                errorBorder: OutlineInputBorder(
+                                                  borderRadius: BorderRadius.circular(16),
+                                                  borderSide: const BorderSide(color: Colors.red, width: 1),
+                                                ),
+                                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 20),
+                                        ],
+                                          // Travel ID info (only for travel users in register mode)
+                                        if (isTravelUser && !isLogin) ...[
+                                          Container(
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF1658B3).withOpacity(0.05),
+                                              borderRadius: BorderRadius.circular(16),
+                                              border: Border.all(color: const Color(0xFF1658B3).withOpacity(0.2)),
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    const Icon(Icons.card_membership, color: Color(0xFF1658B3)),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          const Text(
+                                                            'Travel ID Anda',
+                                                            style: TextStyle(
+                                                              fontWeight: FontWeight.w700,
+                                                              color: Color(0xFF1658B3),
+                                                              fontSize: 16,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(height: 4),
+                                                          if (_isGeneratingTravelId)
+                                                            const Text(
+                                                              'Sedang membuat Travel ID...',
+                                                              style: TextStyle(
+                                                                fontSize: 14,
+                                                                color: Color(0xFF1658B3),
+                                                              ),
+                                                            )
+                                                          else if (_generatedTravelId != null)
+                                                            Text(
+                                                              'ID: $_generatedTravelId',
+                                                              style: const TextStyle(
+                                                                fontSize: 18,
+                                                                color: Color(0xFF1658B3),
+                                                                fontWeight: FontWeight.bold,
+                                                                letterSpacing: 2,
+                                                              ),
+                                                            )
+                                                          else
+                                                            const Text(
+                                                              'Travel ID akan dibuat otomatis',
+                                                              style: TextStyle(
+                                                                fontSize: 14,
+                                                                color: Color(0xFF1658B3),
+                                                              ),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                if (_generatedTravelId != null) ...[
+                                                  const SizedBox(height: 12),
+                                                  Container(
+                                                    padding: const EdgeInsets.all(12),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.green[50],
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      border: Border.all(color: Colors.green[300]!, width: 1),
+                                                    ),
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(Icons.check_circle_outline, size: 18, color: Colors.green[600]),
+                                                        const SizedBox(width: 8),
+                                                        const Expanded(
+                                                          child: Text(
+                                                            'Travel ID ini akan digunakan untuk registrasi Anda',
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: Color(0xFF2E7D32),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 20),
+                                        ],
+                                        
+                                        // Password field
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.05),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: TextFormField(
+                                            controller: _passwordController,
+                                            obscureText: !isPasswordVisible,
+                                            validator: _validatePassword,
+                                            decoration: InputDecoration(
+                                              labelText: 'Password',
+                                              hintText: 'Masukkan password Anda',
+                                              prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF1658B3)),
+                                              suffixIcon: IconButton(
+                                                icon: Icon(
+                                                  isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    isPasswordVisible = !isPasswordVisible;
+                                                  });
+                                                },
+                                              ),
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                                borderSide: BorderSide.none,
+                                              ),
+                                              filled: true,
+                                              fillColor: Colors.grey[50],
+                                              focusedBorder: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                                borderSide: const BorderSide(color: Color(0xFF1658B3), width: 2),
+                                              ),
+                                              errorBorder: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                                borderSide: const BorderSide(color: Colors.red, width: 1),
+                                              ),
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                            ),
+                                          ),
+                                        ),
+                                        
+                                        const SizedBox(height: 32),
+  
+                                        // Submit button
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 56,
+                                          child: ElevatedButton(
+                                            onPressed: isLoading ? null : _handleSubmit,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFF1658B3),
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                              ),
+                                              elevation: 8,
+                                              shadowColor: const Color(0xFF1658B3).withOpacity(0.3),
+                                            ),
+                                            child: isLoading
+                                                ? const SizedBox(
+                                                    height: 24,
+                                                    width: 24,
+                                                    child: CircularProgressIndicator(
+                                                      color: Colors.white,
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : Text(
+                                                    isLogin ? 'Masuk' : 'Daftar',
+                                                    style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                          ),
+                                        ),                                        
+                                        const SizedBox(height: 32),
+                                        
+                                        // Session info
+                                        Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green[50],
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: Colors.green[200]!),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.security, color: Colors.green[700], size: 20),
+                                              const SizedBox(width: 12),                                              const Expanded(
+                                                child: Text(
+                                                  'Login Anda akan tersimpan selama 14 hari. Jika diperlukan, silakan login ulang.',
+                                                  style: TextStyle(
+                                                    color: Color(0xFF2E7D32),
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Enhanced Admin Home Page with user info
-class AdminHomePage extends StatelessWidget {
-  const AdminHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Home'),
-        backgroundColor: const Color(0xFF3B82F6),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              // Navigation will be handled by AuthWrapper
-            },
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Welcome, Admin!',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF3B82F6),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Email: ${user?.email ?? 'N/A'}'),
-                    Text('Name: ${user?.displayName ?? 'N/A'}'),
-                    const Text('User Type: Travel Admin'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Admin Dashboard',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                children: [
-                  _buildDashboardCard('Manage Users', Icons.people, () {}),
-                  _buildDashboardCard('Travel Packages', Icons.flight, () {}),
-                  _buildDashboardCard('Bookings', Icons.book, () {}),
-                  _buildDashboardCard('Reports', Icons.assessment, () {}),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDashboardCard(String title, IconData icon, VoidCallback onTap) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 48, color: const Color(0xFF3B82F6)),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Enhanced Warga Home Page with user info
-class WargaHomePage extends StatelessWidget {
-  const WargaHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Jamaah Home'),
-        backgroundColor: const Color(0xFF3B82F6),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              // Navigation will be handled by AuthWrapper
-            },
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Welcome, Jamaah!',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF3B82F6),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Email: ${user?.email ?? 'N/A'}'),
-                    Text('Name: ${user?.displayName ?? 'N/A'}'),
-                    const Text('User Type: Jamaah'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Jamaah Dashboard',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                children: [
-                  _buildDashboardCard('Browse Packages', Icons.search, () {}),
-                  _buildDashboardCard('My Bookings', Icons.bookmark, () {}),
-                  _buildDashboardCard('Profile', Icons.person, () {}),
-                  _buildDashboardCard('Support', Icons.help, () {}),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDashboardCard(String title, IconData icon, VoidCallback onTap) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 48, color: const Color(0xFF3B82F6)),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
           ),
         ),
       ),

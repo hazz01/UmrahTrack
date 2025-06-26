@@ -12,6 +12,14 @@ import 'package:umrahtrack/presentation/pages/jamaah/jamaah_lokasi.dart';
 import 'package:umrahtrack/presentation/pages/unverified_account_page.dart';
 import 'package:umrahtrack/test_geolocator.dart';
 import 'package:umrahtrack/test_firebase_realtime.dart';
+import 'package:umrahtrack/test_location_realtime_verification.dart';
+import 'package:umrahtrack/test_firebase_connection.dart';
+import 'package:umrahtrack/test_location_debug.dart';
+import 'package:umrahtrack/simple_firebase_test.dart';
+import 'package:umrahtrack/location_diagnostic_page.dart';
+import 'package:umrahtrack/quick_rtdb_test.dart';
+import 'package:umrahtrack/emergency_rtdb_test.dart';
+import 'package:umrahtrack/database_region_test.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
@@ -19,10 +27,26 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialize Firebase with duplicate app protection
+  try {
+    // Check if Firebase is already initialized
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      print('✅ Firebase initialized successfully');
+    } else {
+      print('✅ Firebase already initialized (${Firebase.apps.length} apps)');
+    }
+  } catch (e) {
+    if (e.toString().contains('duplicate-app')) {
+      print('⚠️ Firebase already initialized (duplicate app caught)');
+      // Firebase is already initialized, which is fine
+    } else {
+      print('❌ Firebase initialization error: $e');
+      rethrow; // Re-throw if it's a different error
+    }
+  }
   
   // Initialize locale data for Indonesian date formatting
   await initializeDateFormatting('id_ID', null);
@@ -39,7 +63,6 @@ void main() async {
 
 class UmrahTrackApp extends StatelessWidget {
   const UmrahTrackApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -49,20 +72,26 @@ class UmrahTrackApp extends StatelessWidget {
         fontFamily: 'Roboto',
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const  Color(0xFF1658B3),
+          seedColor: const Color(0xFF1658B3),
           brightness: Brightness.light,
         ),
-      ),      // Use AuthWrapper from login_page.dart to handle authentication state
-      home: const AuthWrapper(),      routes: {
-        '/login': (context) => const LoginPage(),
+      ),
+      // Start with SplashScreen instead of AuthWrapper
+      home: const LoginPage(),routes: {
+        '/login': (context) => LoginPage(),
         '/travel-registration': (context) => const TravelRegistrationPage(),
-        '/kelola_jamaah': (context) => const KelolaWargaPage(),        '/admin/home': (context) => const KelolaWargaPage(), // Main admin page
+        '/kelola_jamaah': (context) => const KelolaWargaPage(),'/admin/home': (context) => const KelolaWargaPage(), // Main admin page
         '/admin/rombongan': (context) => const KelolaRombonganPage(),
         '/admin/lokasi': (context) => const LocationPage(),
-        '/jamaah/home': (context) => const JamaahHomePage(),        '/jamaah/lokasi': (context) => const JamaahLokasiPage(),
-        '/unverified_account': (context) => const UnverifiedAccountPage(),
-        '/test-geolocator': (context) => const TestLocationPage(),
+        '/jamaah/home': (context) => const JamaahHomePage(),        '/jamaah/lokasi': (context) => const JamaahLokasiPage(),        '/unverified_account': (context) => const UnverifiedAccountPage(),        '/test-geolocator': (context) => const TestLocationPage(),
         '/test-firebase-realtime': (context) => const TestFirebaseRealtimePage(),
+        '/test-location-verification': (context) => const TestLocationRealtimeVerificationPage(),
+        '/test-firebase-connection': (context) => const TestFirebaseConnectionPage(),
+        '/test-location-debug': (context) => const TestLocationDebugPage(),
+        '/simple-firebase-test': (context) => const SimpleFirebaseTest(),
+        '/location-diagnostic': (context) => const LocationDiagnosticPage(),        '/quick-rtdb-test': (context) => const QuickRTDBTest(),
+        '/emergency-rtdb-test': (context) => const EmergencyRTDBTest(),
+        '/database-region-test': (context) => const DatabaseRegionTest(),
       },onGenerateRoute: (RouteSettings settings) {
         // Handle specific missing admin routes 
         switch (settings.name) {          case '/admin/cctv':

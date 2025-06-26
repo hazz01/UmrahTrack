@@ -51,7 +51,6 @@ class BottomNavbarAdmin extends StatelessWidget {
       ),
     );
   }
-
   Widget _buildNavItem({
     required IconData icon,
     required String label,
@@ -61,8 +60,7 @@ class BottomNavbarAdmin extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF1658B3).withOpacity(0.1) : Colors.transparent,
@@ -71,8 +69,7 @@ class BottomNavbarAdmin extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+            Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isSelected ? const Color(0xFF1658B3) : Colors.transparent,
@@ -85,14 +82,13 @@ class BottomNavbarAdmin extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
+            Text(
+              label,
               style: TextStyle(
                 color: isSelected ? const Color(0xFF1658B3) : const Color(0xFF6C7B8A),
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
-              child: Text(label),
             ),
           ],
         ),

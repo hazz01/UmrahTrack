@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:umrahtrack/data/services/session_manager.dart';
 import 'package:umrahtrack/data/models/rombongan_model.dart';
 import '../../widgets/bottom_navbar_admin.dart';
@@ -21,8 +22,11 @@ class _LocationPageState extends State<LocationPage> {
   // Controller untuk map
   final MapController _mapController = MapController();
   
-  // Firebase references
-  final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  // Firebase references - Use explicit Asia Southeast database URL
+  final DatabaseReference _database = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL: 'https://umrahtrack-hazz-default-rtdb.asia-southeast1.firebasedatabase.app',
+  ).ref();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   
@@ -195,13 +199,15 @@ class _LocationPageState extends State<LocationPage> {
             email: userData['email'] ?? 'N/A',
             address: _getAddressFromCoordinates(latitude, longitude),
             lastSeen: lastSeen,
-            groupName: 'Travel ${_currentTravelId}',
+            groupName: 'Travel ${_currentTravelId}',
             rombonganId: rombonganId,
             rombonganName: rombonganName,
             location: LatLng(latitude, longitude),
             avatarUrl: userData['profilePicture'] ?? 'https://ui-avatars.com/api/?name=${userData['name'] ?? 'U'}&background=1658B3&color=fff',
             accuracy: locationData['accuracy']?.toDouble() ?? 0.0,
             speed: locationData['speed']?.toDouble() ?? 0.0,
+            isTracking: locationData['isTracking'] == true,
+            isOnline: timeDiff.inMinutes < 5, // online jika update < 5 menit
           );
           
           setState(() {
@@ -549,19 +555,41 @@ class _LocationPageState extends State<LocationPage> {
                     point: jamaah.location,
                     child: GestureDetector(
                       onTap: () => _selectJamaah(jamaah),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _selectedJamaah == jamaah
-                                ? const Color(0xFF1658B3)
-                                : Colors.white,
-                            width: 2,
+                      child: Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _selectedJamaah == jamaah
+                                    ? const Color(0xFF1658B3)
+                                    : Colors.white,
+                                width: 2,
+                              ),
+                            ),
+                            child: CircleAvatar(
+                              backgroundImage: NetworkImage(jamaah.avatarUrl),
+                            ),
                           ),
-                        ),
-                        child: CircleAvatar(
-                          backgroundImage: NetworkImage(jamaah.avatarUrl),
-                        ),
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: jamaah.isOnline ? (jamaah.isTracking ? Colors.green : Colors.orange) : Colors.red,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1),
+                              ),
+                              child: Icon(
+                                jamaah.isTracking ? Icons.gps_fixed : Icons.gps_off,
+                                size: 10,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -915,7 +943,8 @@ class _LocationPageState extends State<LocationPage> {
                 ),
               ),
             ],
-          ),const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
               const Icon(
@@ -972,6 +1001,58 @@ class _LocationPageState extends State<LocationPage> {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                _selectedJamaah!.isTracking ? Icons.gps_fixed : Icons.gps_off,
+                size: 20,
+                color: _selectedJamaah!.isTracking ? Colors.green : Colors.orange,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _selectedJamaah!.isTracking ? 'Tracking Aktif' : 'Tracking Tidak Aktif',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: _selectedJamaah!.isTracking ? Colors.green : Colors.orange,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _selectedJamaah!.isOnline ? Colors.green.shade50 : Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _selectedJamaah!.isOnline ? Colors.green : Colors.red,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: _selectedJamaah!.isOnline ? Colors.green : Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _selectedJamaah!.isOnline ? 'Online' : 'Offline',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: _selectedJamaah!.isOnline ? Colors.green.shade700 : Colors.red.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -993,6 +1074,8 @@ class JamaahLocation {
   final String avatarUrl;
   final double accuracy;
   final double speed;
+  final bool isTracking;
+  final bool isOnline;
 
   JamaahLocation({
     required this.userId,
@@ -1008,5 +1091,7 @@ class JamaahLocation {
     required this.avatarUrl,
     required this.accuracy,
     required this.speed,
+    required this.isTracking,
+    required this.isOnline,
   });
 }

@@ -8,11 +8,13 @@ service cloud.firestore {
       // Travel users can read individual jamaah documents
       allow read: if request.auth != null && 
         request.auth.uid != userId && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel';
-      
-      // Travel users can query/list jamaah users with specific filters
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel';      // Travel users can query/list jamaah users with specific filters
       allow list: if request.auth != null && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'travel';
+      
+      // Jamaah users can query for travel users (limited query for finding their travel agent)
+      allow list: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'jamaah';
       
       // Travel users can update jamaah documents for rombongan management
       allow update: if request.auth != null && 

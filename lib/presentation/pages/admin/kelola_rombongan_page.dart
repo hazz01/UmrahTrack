@@ -30,9 +30,7 @@ class _KelolaRombonganPageState extends State<KelolaRombonganPage> {
   String _searchQuery = '';
   bool _isLoading = true;
   bool _hasError = false;
-  String _errorMessage = '';
-  bool _isAddFormOpen = false;
-  String? _editingRombonganId;
+  String _errorMessage = '';  String? _editingRombonganId;
   
   DateTime _selectedTanggalBerangkat = DateTime.now().add(const Duration(days: 30));
   DateTime? _selectedTanggalKembali;
@@ -114,15 +112,18 @@ class _KelolaRombonganPageState extends State<KelolaRombonganPage> {
     _selectedTanggalKembali = null;
     _selectedStatus = 'active';
     _editingRombonganId = null;
-  }
-
-  void _toggleAddForm() {
-    setState(() {
-      _isAddFormOpen = !_isAddFormOpen;
-      if (!_isAddFormOpen) {
-        _clearForm();
-      }
-    });
+  }  void _toggleAddForm() {
+    // Clear form when opening
+    _clearForm();
+    
+    // Navigate to fullscreen form
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _buildFullscreenAddEditForm(),
+        fullscreenDialog: true,
+      ),
+    );
   }
 
   Future<void> _createRombongan() async {
@@ -264,7 +265,6 @@ class _KelolaRombonganPageState extends State<KelolaRombonganPage> {
       }
     }
   }
-
   void _editRombongan(Rombongan rombongan) {
     _editingRombonganId = rombongan.id;
     _namaRombonganController.text = rombongan.namaRombongan;
@@ -275,7 +275,15 @@ class _KelolaRombonganPageState extends State<KelolaRombonganPage> {
     _selectedTanggalBerangkat = rombongan.tanggalBerangkat;
     _selectedTanggalKembali = rombongan.tanggalKembali;
     _selectedStatus = rombongan.status;
-    _toggleAddForm();
+    
+    // Navigate to fullscreen form
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _buildFullscreenAddEditForm(),
+        fullscreenDialog: true,
+      ),
+    );
   }
 
   Future<void> _selectDate(bool isBerangkat) async {
@@ -302,13 +310,13 @@ class _KelolaRombonganPageState extends State<KelolaRombonganPage> {
       });
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return TravelVerificationGuard(
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
         appBar: AppBar(
+          automaticallyImplyLeading: false, // Remove back button
           title: const Text(
             'Kelola Rombongan',
             style: TextStyle(
@@ -328,7 +336,6 @@ class _KelolaRombonganPageState extends State<KelolaRombonganPage> {
               ),
             ),
           ),
-          automaticallyImplyLeading: false,
           actions: [
             IconButton(
               icon: const Icon(Icons.add, color: Colors.white),
@@ -364,12 +371,7 @@ class _KelolaRombonganPageState extends State<KelolaRombonganPage> {
                             fillColor: Colors.white,
                           ),
                         ),
-                      ),                      // Add/Edit Form - wrap in Flexible to prevent overflow
-                      if (_isAddFormOpen) 
-                        Flexible(
-                          child: _buildAddEditForm(),
-                        ),
-
+                      ),                      // Add/Edit Form - Remove the inline form since we're using fullscreen
                       // Rombongan List
                       Expanded(
                         child: _currentTravelId == null
@@ -435,208 +437,30 @@ class _KelolaRombonganPageState extends State<KelolaRombonganPage> {
                               ),
                       ),
                     ],
-                  ),
-        bottomNavigationBar: BottomNavbarAdmin(
+                  ),        bottomNavigationBar: BottomNavbarAdmin(
           currentIndex: 2, // Index untuk rombongan
           onTap: (index) {
             switch (index) {
               case 0:
-                Navigator.pushNamed(context, '/admin/home');
+                Navigator.pushNamedAndRemoveUntil(
+                  context, 
+                  '/kelola_jamaah',
+                  (route) => false,
+                );
                 break;
               case 1:
-                Navigator.pushNamed(context, '/kelola_jamaah');
+                Navigator.pushNamedAndRemoveUntil(
+                  context, 
+                  '/admin/lokasi',
+                  (route) => false,
+                );
                 break;
               case 2:
-                // Already on rombongan page
-                break;
-              case 3:
-                Navigator.pushNamed(context, '/admin/lokasi');
-                break;
-              case 4:
-                Navigator.pushNamed(context, '/admin/laporan');
+                // Already on rombongan page - do nothing
                 break;
             }
           },
-        ),    ),
-    );
-  }
-  
-    Widget _buildAddEditForm() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _editingRombonganId == null ? 'Tambah Rombongan' : 'Edit Rombongan',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: _toggleAddForm,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Nama Rombongan
-            TextField(
-              controller: _namaRombonganController,
-              decoration: const InputDecoration(
-                labelText: 'Nama Rombongan *',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // Deskripsi
-            TextField(
-              controller: _deskripsiController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Deskripsi',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // Kapasitas dan Status
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _kapasitasController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Kapasitas *',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedStatus,
-                    decoration: const InputDecoration(
-                      labelText: 'Status',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'active', child: Text('Aktif')),
-                      DropdownMenuItem(value: 'inactive', child: Text('Tidak Aktif')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedStatus = value!;
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            // Tanggal Berangkat dan Kembali
-            Row(
-              children: [
-                Expanded(
-                  child: ListTile(
-                    title: const Text('Tanggal Berangkat *'),
-                    subtitle: Text(DateFormat('dd/MM/yyyy').format(_selectedTanggalBerangkat)),
-                    leading: const Icon(Icons.calendar_today),
-                    onTap: () => _selectDate(true),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: Colors.grey),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ListTile(
-                    title: const Text('Tanggal Kembali'),
-                    subtitle: Text(_selectedTanggalKembali != null 
-                        ? DateFormat('dd/MM/yyyy').format(_selectedTanggalKembali!)
-                        : 'Belum ditentukan'),
-                    leading: const Icon(Icons.calendar_today),
-                    onTap: () => _selectDate(false),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: Colors.grey),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            // Guide dan Kontak
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _guideController,
-                    decoration: const InputDecoration(
-                      labelText: 'Guide/Pembimbing',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _kontakController,
-                    decoration: const InputDecoration(
-                      labelText: 'Kontak',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Action Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: _toggleAddForm,
-                  child: const Text('Batal'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _editingRombonganId == null ? _createRombongan : _updateRombongan,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1658B3),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text(_editingRombonganId == null ? 'Tambah' : 'Update'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+        ),),
     );
   }
 
@@ -772,7 +596,292 @@ class _KelolaRombonganPageState extends State<KelolaRombonganPage> {
                 ),
             ],
           ),
+        ),      ),
+    );
+  }
+
+  // New fullscreen form method
+  Widget _buildFullscreenAddEditForm() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: Text(
+          _editingRombonganId == null ? 'Tambah Rombongan' : 'Edit Rombongan',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
+        backgroundColor: const Color(0xFF1658B3),
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1658B3), Color(0xFF42A5F5)],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _clearForm();
+              Navigator.pop(context);
+            },
+            child: const Text(
+              'Batal',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Nama Rombongan
+            _buildFullscreenFormField(
+              'Nama Rombongan *',
+              'Masukkan nama rombongan',
+              _namaRombonganController,
+            ),
+            const SizedBox(height: 20),
+            
+            // Deskripsi
+            _buildFullscreenFormField(
+              'Deskripsi',
+              'Masukkan deskripsi rombongan',
+              _deskripsiController,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 20),
+            
+            // Kapasitas dan Status
+            Row(
+              children: [
+                Expanded(
+                  child: _buildFullscreenFormField(
+                    'Kapasitas *',
+                    'Jumlah jamaah',
+                    _kapasitasController,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Status',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: _selectedStatus,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'active', child: Text('Aktif')),
+                            DropdownMenuItem(value: 'inactive', child: Text('Tidak Aktif')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedStatus = value!;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            // Tanggal Berangkat dan Kembali
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: ListTile(
+                      title: const Text(
+                        'Tanggal Berangkat *',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      subtitle: Text(
+                        DateFormat('dd/MM/yyyy').format(_selectedTanggalBerangkat),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      trailing: const Icon(Icons.calendar_today, color: Color(0xFF1658B3)),
+                      onTap: () => _selectDate(true),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: ListTile(
+                      title: const Text(
+                        'Tanggal Kembali',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _selectedTanggalKembali != null 
+                            ? DateFormat('dd/MM/yyyy').format(_selectedTanggalKembali!)
+                            : 'Belum ditentukan',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      trailing: const Icon(Icons.calendar_today, color: Color(0xFF1658B3)),
+                      onTap: () => _selectDate(false),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            // Guide dan Kontak
+            Row(
+              children: [
+                Expanded(
+                  child: _buildFullscreenFormField(
+                    'Guide/Pembimbing',
+                    'Nama guide/pembimbing',
+                    _guideController,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildFullscreenFormField(
+                    'Kontak',
+                    'Nomor kontak',
+                    _kontakController,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 40),
+            
+            // Action Button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () async {
+                  if (_editingRombonganId == null) {
+                    await _createRombongan();
+                  } else {
+                    await _updateRombongan();
+                  }
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1658B3),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 2,
+                ),
+                child: Text(
+                  _editingRombonganId == null ? 'Tambah Rombongan' : 'Update Rombongan',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullscreenFormField(
+    String label,
+    String hint,
+    TextEditingController controller, {
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            maxLines: maxLines,
+            keyboardType: keyboardType,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 14,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -496,13 +496,13 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
     setState(() {
       _isUploadCSVOpen = !_isUploadCSVOpen;
     });
-  }
-  @override
+  }  @override
   Widget build(BuildContext context) {
     return TravelVerificationGuard(
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F8F8),
         appBar: AppBar(
+          automaticallyImplyLeading: false, // Remove back button
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -657,25 +657,26 @@ class _KelolaWargaPageState extends State<KelolaWargaPage> {
                   ],
                 ),
               ),
-            _buildBottomActionBar(),
-            BottomNavbarAdmin(
+            _buildBottomActionBar(),            BottomNavbarAdmin(
               currentIndex: 0,
               onTap: (index) {
                 switch (index) {
                   case 0:
-                    Navigator.pushNamed(context, '/admin/home');
+                    // Already on Jamaah page - do nothing
                     break;
                   case 1:
-                    Navigator.pushNamed(context, '/admin/lokasi');
+                    Navigator.pushNamedAndRemoveUntil(
+                      context, 
+                      '/admin/lokasi',
+                      (route) => false,
+                    );
                     break;
                   case 2:
-                    Navigator.pushNamed(context, '/admin/cctv');
-                    break;
-                  case 3:
-                    Navigator.pushNamed(context, '/admin/surat');
-                    break;
-                  case 4:
-                    Navigator.pushNamed(context, '/admin/laporan');
+                    Navigator.pushNamedAndRemoveUntil(
+                      context, 
+                      '/admin/rombongan',
+                      (route) => false,
+                    );
                     break;
                 }
               },

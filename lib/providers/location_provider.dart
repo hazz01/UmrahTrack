@@ -113,10 +113,12 @@ class LocationProvider extends ChangeNotifier {
           _isTracking = false;
           notifyListeners();
         },
-      );
-
-      _isTracking = true;
+      );      _isTracking = true;
       _error = null;
+      
+      // Save tracking status to Firebase
+      await _saveTrackingStatusToFirebase(true);
+      
       notifyListeners();
     } catch (e) {
       _error = 'Error memulai tracking: $e';
@@ -124,11 +126,14 @@ class LocationProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
   void stopLocationTracking() {
     _positionStreamSubscription?.cancel();
     _positionStreamSubscription = null;
     _isTracking = false;
+    
+    // Save tracking status to Firebase
+    _saveTrackingStatusToFirebase(false);
+    
     notifyListeners();
   }
 
@@ -136,11 +141,15 @@ class LocationProvider extends ChangeNotifier {
     stopLocationTracking();
     await Future.delayed(const Duration(seconds: 1));
     await startLocationTracking();
-  }
-
-  Future<void> _saveLocationToFirebase() async {
+  }  Future<void> _saveLocationToFirebase() async {
     try {
-      if (_currentPosition == null) return;
+      if (_currentPosition == null) {
+        print('❌ LocationProvider: No current position to save');
+        return;
+      }
+
+      print('🔄 LocationProvider: Saving location to Firebase');
+      print('📍 Position: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}');
 
       await LocationService.saveLocationToFirebase(
         latitude: _currentPosition!.latitude!,
@@ -149,8 +158,19 @@ class LocationProvider extends ChangeNotifier {
         altitude: _currentPosition!.altitude ?? 0.0,
         speed: _currentPosition!.speed ?? 0.0,
       );
+
+      print('✅ LocationProvider: Location saved successfully');
     } catch (e) {
+      print('❌ LocationProvider: Error saving location to Firebase: $e');
       debugPrint('Error saving location to Firebase: $e');
+    }
+  }
+
+  Future<void> _saveTrackingStatusToFirebase(bool isTracking) async {
+    try {
+      await LocationService.saveTrackingStatusToFirebase(isTracking);
+    } catch (e) {
+      debugPrint('Error saving tracking status to Firebase: $e');
     }
   }
   Future<void> openLocationSettings() async {

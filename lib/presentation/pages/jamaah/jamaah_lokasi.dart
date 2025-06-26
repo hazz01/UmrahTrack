@@ -187,11 +187,9 @@ class _JamaahLokasiPageState extends State<JamaahLokasiPage> {
                     ),
                   ],
                 ),
-              ),
-
-              // Location status card
+              ),              // Location status card
               Positioned(
-                bottom: 100,
+                bottom: 20,
                 left: 16,
                 right: 16,
                 child: Card(

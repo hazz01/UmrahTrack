@@ -10,9 +10,8 @@ class SessionManager {
   static const String _keyUserId = 'userId';
   static const String _keyUserEmail = 'userEmail';
   static const String _keyUserName = 'userName';
-  
-  // Session duration: 1 day (24 hours)
-  static const int sessionDurationHours = 24;
+    // Session duration: 14 days
+  static const int sessionDurationDays = 14;
 
   // In-memory storage as fallback (will be reset on app restart)
   static Map<String, dynamic> _inMemoryStorage = {};
@@ -74,10 +73,9 @@ class SessionManager {
     if (_useInMemoryFallback) {
       final isLoggedIn = _inMemoryStorage[_keyIsLoggedIn] as bool? ?? false;
       if (!isLoggedIn) return false;
-      
-      final loginTime = _inMemoryStorage[_keyLoginTime] as int? ?? 0;
+        final loginTime = _inMemoryStorage[_keyLoginTime] as int? ?? 0;
       final currentTime = DateTime.now().millisecondsSinceEpoch;
-      final sessionDuration = const Duration(hours: sessionDurationHours).inMilliseconds;
+      final sessionDuration = const Duration(days: sessionDurationDays).inMilliseconds;
       
       // Check if session has expired
       if (currentTime - loginTime > sessionDuration) {
