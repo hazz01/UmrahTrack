@@ -7,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:umrahtrack/config/mapbox_config.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/location_provider.dart';
 import '../../widgets/bottom_navbar_admin.dart';
 
 class LocationPage extends StatefulWidget {
@@ -48,25 +50,69 @@ class _LocationPageState extends State<LocationPage> {
       _refreshData();
     });
   }
-
   @override
   void dispose() {
     _locationsSubscription?.cancel();
     _refreshTimer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _initializeLocation() async {
+    
+    // Clean up location provider listener
     try {
-      // Gunakan lokasi default Mecca untuk sekarang
+      final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+      locationProvider.removeListener(_onAdminLocationChanged);
+      locationProvider.stopLocationTracking();
+    } catch (e) {
+      // Handle case when provider is not available
+      print('Error cleaning up location provider: $e');
+    }
+    
+    super.dispose();
+  }Future<void> _initializeLocation() async {
+    try {
+      // Get admin's real-time location using LocationProvider
+      final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+      
+      // Check if location service is available and get current location
+      await locationProvider.getCurrentLocation();
+      
+      if (locationProvider.currentPosition != null) {
+        setState(() {
+          _selfLocation = LatLng(
+            locationProvider.currentPosition!.latitude!,
+            locationProvider.currentPosition!.longitude!,
+          );
+          _isLoading = false;
+        });
+        
+        // Start tracking admin location for real-time updates
+        await locationProvider.startLocationTracking();
+        
+        // Listen to location changes
+        locationProvider.addListener(_onAdminLocationChanged);
+      } else {
+        // Fallback to default Mecca location if GPS fails
+        setState(() {
+          _selfLocation = _currentLocation;
+          _isLoading = false;
+        });
+      }    } catch (e) {
       setState(() {
+        _error = 'Error getting admin location: $e';
+        // Fallback to default location
         _selfLocation = _currentLocation;
         _isLoading = false;
       });
-    } catch (e) {
+    }
+  }
+
+  void _onAdminLocationChanged() {
+    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+    
+    if (locationProvider.currentPosition != null) {
       setState(() {
-        _error = 'Error getting location: $e';
-        _isLoading = false;
+        _selfLocation = LatLng(
+          locationProvider.currentPosition!.latitude!,
+          locationProvider.currentPosition!.longitude!,
+        );
       });
     }
   }
@@ -294,9 +340,11 @@ class _LocationPageState extends State<LocationPage> {
       setState(() {});
     }
   }
-
   @override
-  Widget build(BuildContext context) {    if (_isLoading) {
+  Widget build(BuildContext context) {
+    return Consumer<LocationProvider>(
+      builder: (context, locationProvider, child) {
+        if (_isLoading) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
         body: const Center(
@@ -424,10 +472,9 @@ class _LocationPageState extends State<LocationPage> {
                         ),
                       ),
                     ),
-                  );
-                }).toList(),
+                  );                }).toList(),
               ),
-              // Self location marker (admin)
+              // Real-time admin location marker
               if (_selfLocation != null)
                 MarkerLayer(
                   markers: [
@@ -582,9 +629,10 @@ class _LocationPageState extends State<LocationPage> {
             case 2:
               Navigator.pushNamed(context, '/admin/cctv');
               break;
-          }
-        },
+          }        },
       ),
+    );
+      },
     );
   }
 
