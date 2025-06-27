@@ -109,6 +109,8 @@ class _JamaahLokasiPageState extends State<JamaahLokasiPage> {
                 options: MapOptions(
                   initialCenter: _currentMapCenter,
                   initialZoom: _currentZoom,
+                  maxZoom: MapboxConfig.maxZoom,
+                  minZoom: MapboxConfig.minZoom,
                   onMapEvent: (MapEvent event) {
                     if (event is MapEventMove) {
                       setState(() {
@@ -118,8 +120,7 @@ class _JamaahLokasiPageState extends State<JamaahLokasiPage> {
                     }
                   },
                 ),
-                children: [
-                  TileLayer(
+                children: [                  TileLayer(
                     urlTemplate: MapboxConfig.defaultTileUrl,
                     userAgentPackageName: 'com.umrahtrack.app',
                     maxZoom: MapboxConfig.maxZoom,

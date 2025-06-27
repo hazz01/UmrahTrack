@@ -35,11 +35,13 @@ class _LocationPageState extends State<LocationPage> {
   bool _isLoading = true;
   String? _error;
   bool _showLocationSummary = false;
-    // Filter dan pencarian
+  
+  // Filter dan pencarian
   List<Map<String, dynamic>> _rombonganList = [];
   String? _selectedRombonganFilter;
   String _searchQuery = '';
-    // Stream subscriptions
+  
+  // Stream subscriptions
   StreamSubscription<DatabaseEvent>? _locationsSubscription;
   Timer? _refreshTimer;
 
@@ -96,7 +98,9 @@ class _LocationPageState extends State<LocationPage> {
       final rombonganQuery = await _firestore
           .collection('rombongan')
           .where('travelId', isEqualTo: travelId)
-          .get();      setState(() {
+          .get();
+
+      setState(() {
         _rombonganList = rombonganQuery.docs
             .map((doc) => {
               'id': doc.id,
@@ -170,9 +174,6 @@ class _LocationPageState extends State<LocationPage> {
           _jamaahList = newJamaahList;
           _error = null;
         });
-
-        // Update map markers
-        _updateMapMarkers();
       }
     } catch (e) {
       if (mounted) {
@@ -234,7 +235,9 @@ class _LocationPageState extends State<LocationPage> {
     }
 
     return filtered;
-  }  void _selectJamaah(JamaahLocation jamaah) {
+  }
+
+  void _selectJamaah(JamaahLocation jamaah) {
     setState(() {
       _selectedJamaah = jamaah;
     });
@@ -250,8 +253,8 @@ class _LocationPageState extends State<LocationPage> {
   }
 
   void _resetMapOrientation() {
-    // Reset map rotation - flutter_map handles this automatically
-    // No specific method needed for flutter_map
+    // Flutter map doesn't have bearing, just center the map
+    _mapController.move(_currentLocation, 15.0);
   }
 
   void _focusOnAllJamaah() {
@@ -278,28 +281,30 @@ class _LocationPageState extends State<LocationPage> {
     double minLng = allPoints.map((p) => p.longitude).reduce((a, b) => a < b ? a : b);
     double maxLng = allPoints.map((p) => p.longitude).reduce((a, b) => a > b ? a : b);
 
-    // Calculate center
-    LatLng center = LatLng(
-      (minLat + maxLat) / 2,
-      (minLng + maxLng) / 2,
+    // Add padding
+    double latPadding = (maxLat - minLat) * 0.2;
+    double lngPadding = (maxLng - minLng) * 0.2;
+
+    // Create bounds for coverage of all points with padding
+    LatLngBounds bounds = LatLngBounds(
+      LatLng(minLat - latPadding, minLng - lngPadding),
+      LatLng(maxLat + latPadding, maxLng + lngPadding),
     );
 
-    // Move map to center with appropriate zoom
-    _mapController.move(center, 13.0);
+    // Calculate the center of the bounds
+    LatLng center = LatLng(
+      (bounds.northEast.latitude + bounds.southWest.latitude) / 2,
+      (bounds.northEast.longitude + bounds.southWest.longitude) / 2,
+    );
+
+    // Move the map to the center of the bounds with an appropriate zoom level
+    _mapController.move(center, 13); // Adjust zoom level as needed
   }
+
   void _toggleLocationSummary() {
     setState(() {
       _showLocationSummary = !_showLocationSummary;
     });
-  }
-
-  // Update map markers - simplified for flutter_map
-  void _updateMapMarkers() {
-    // Markers are now handled directly in the widget tree
-    // This method can be used to trigger rebuilds if needed
-    if (mounted) {
-      setState(() {});
-    }
   }
 
   @override
@@ -407,7 +412,9 @@ class _LocationPageState extends State<LocationPage> {
           ),
         ),
       );
-    }    return Scaffold(
+    }
+
+    return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
         children: [
@@ -416,9 +423,9 @@ class _LocationPageState extends State<LocationPage> {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: _currentLocation,
-              initialZoom: 15.0,
-              minZoom: MapboxConfig.minZoom,
+              initialZoom: 15,
               maxZoom: MapboxConfig.maxZoom,
+              minZoom: MapboxConfig.minZoom,
             ),
             children: [
               TileLayer(
@@ -426,65 +433,78 @@ class _LocationPageState extends State<LocationPage> {
                 userAgentPackageName: 'com.umrahtrack.app',
                 maxZoom: MapboxConfig.maxZoom,
               ),
-              // Markers for jamaah locations
+              
+              // Marker Layer untuk lokasi jamaah
               MarkerLayer(
                 markers: _getFilteredJamaah().map((jamaah) {
                   return Marker(
-                    width: 40.0,
-                    height: 40.0,
+                    width: 40,
+                    height: 40,
                     point: jamaah.location,
                     child: GestureDetector(
                       onTap: () => _selectJamaah(jamaah),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: jamaah.isOnline 
-                              ? (jamaah.isTracking ? Colors.green : Colors.orange) 
-                              : Colors.red,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                      child: Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _selectedJamaah == jamaah
+                                    ? const Color(0xFF1658B3)
+                                    : Colors.white,
+                                width: 2,
+                              ),
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                            child: CircleAvatar(
+                              backgroundImage: NetworkImage(jamaah.avatarUrl),
+                            ),
+                          ),
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: jamaah.isOnline ? (jamaah.isTracking ? Colors.green : Colors.orange) : Colors.red,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1),
+                              ),
+                              child: Icon(
+                                jamaah.isTracking ? Icons.gps_fixed : Icons.gps_off,
+                                size: 10,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
                 }).toList(),
               ),
-              // Self location marker (admin)
+              
+              // Marker untuk lokasi diri sendiri (admin)
               if (_selfLocation != null)
                 MarkerLayer(
                   markers: [
                     Marker(
-                      width: 50.0,
-                      height: 50.0,
+                      width: 40,
+                      height: 40,
                       point: _selfLocation!,
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF1658B3),
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          color: Colors.blue.withOpacity(0.3),
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2,
+                          ),
                         ),
                         child: const Icon(
-                          Icons.admin_panel_settings,
-                          color: Colors.white,
-                          size: 25,
+                          Icons.person_pin_circle,
+                          color: Color(0xFF1658B3),
+                          size: 30,
                         ),
                       ),
                     ),
@@ -660,7 +680,6 @@ class _LocationPageState extends State<LocationPage> {
                   setState(() {
                     _searchQuery = value;
                   });
-                  _updateMapMarkers();
                 },
               ),
               const SizedBox(height: 8),
@@ -678,7 +697,8 @@ class _LocationPageState extends State<LocationPage> {
                   const DropdownMenuItem<String>(
                     value: null,
                     child: Text('Semua Rombongan'),
-                  ),                  ..._rombonganList.map((rombongan) {
+                  ),
+                  ..._rombonganList.map((rombongan) {
                     return DropdownMenuItem<String>(
                       value: rombongan['name'] as String,
                       child: Text(rombongan['name'] as String),
@@ -689,7 +709,6 @@ class _LocationPageState extends State<LocationPage> {
                   setState(() {
                     _selectedRombonganFilter = value;
                   });
-                  _updateMapMarkers();
                 },
               ),
             ],
@@ -761,6 +780,8 @@ class _LocationPageState extends State<LocationPage> {
             const SizedBox(height: 12),
             const Divider(),
             const SizedBox(height: 8),
+            
+            // Location details
             Row(
               children: [
                 const Icon(
