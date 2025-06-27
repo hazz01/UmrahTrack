@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:umrahtrack/config/mapbox_config.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../providers/location_provider.dart';
 import '../../widgets/bottom_navbar_admin.dart';
 
@@ -330,6 +331,219 @@ class _LocationPageState extends State<LocationPage> {
     setState(() {
       _showLocationSummary = !_showLocationSummary;
     });
+  }
+
+  // Show route dialog with jamaah list
+  void _showRouteDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        minChildSize: 0.3,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Header
+              Row(
+                children: [
+                  const Icon(
+                    Icons.directions,
+                    color: Color(0xFF1658B3),
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Pilih Jamaah untuk Navigasi',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2E3A59),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              // Jamaah list
+              Expanded(
+                child: _jamaahList.isEmpty 
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.location_off,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Tidak ada jamaah yang tersedia',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        itemCount: _jamaahList.length,
+                        separatorBuilder: (context, index) => const Divider(),
+                        itemBuilder: (context, index) {
+                          final jamaah = _jamaahList[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              radius: 25,
+                              backgroundImage: NetworkImage(jamaah.avatarUrl),
+                              child: jamaah.avatarUrl.isEmpty 
+                                  ? const Icon(Icons.person) 
+                                  : null,
+                            ),
+                            title: Text(
+                              jamaah.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  jamaah.rombonganName,
+                                  style: const TextStyle(
+                                    color: Color(0xFF636363),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: jamaah.isOnline 
+                                            ? Colors.green 
+                                            : Colors.red,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        jamaah.isOnline ? 'Online' : 'Offline',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Update: ${jamaah.lastUpdate}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF636363),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),                            trailing: const Icon(
+                              Icons.navigation,
+                              color: Color(0xFF1658B3),
+                            ),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _openGoogleMapsNavigation(jamaah);
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Open Google Maps for navigation to specific jamaah
+  Future<void> _openGoogleMapsNavigation(JamaahLocation jamaah) async {
+    try {
+      // Get current admin location
+      final LatLng? origin = _selfLocation;
+      final LatLng destination = jamaah.location;
+      
+      String googleMapsUrl;
+      
+      if (origin != null) {
+        // Navigation from current location to jamaah
+        googleMapsUrl = 'https://www.google.com/maps/dir/'
+            '${origin.latitude},${origin.longitude}/'
+            '${destination.latitude},${destination.longitude}/'
+            '?nav=1';
+      } else {
+        // Just show jamaah location if admin location not available
+        googleMapsUrl = 'https://www.google.com/maps/search/'
+            '?api=1&query=${destination.latitude},${destination.longitude}';
+      }
+      
+      final Uri uri = Uri.parse(googleMapsUrl);
+      
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        
+        // Show confirmation snackbar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Membuka navigasi ke ${jamaah.name}'),
+              backgroundColor: const Color(0xFF1658B3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        // Fallback - try to open in browser
+        await launchUrl(uri, mode: LaunchMode.inAppWebView);
+      }
+    } catch (e) {
+      // Show error snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error membuka navigasi: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   // Update map markers - simplified for flutter_map
@@ -987,10 +1201,7 @@ class _LocationPageState extends State<LocationPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(68),
                     ),
-                  ),
-                  onPressed: () {
-                    // Implementasi navigasi rute
-                  },
+                  ),                  onPressed: _showRouteDialog,
                 ),
               ),
             ],
@@ -1112,8 +1323,7 @@ class _LocationPageState extends State<LocationPage> {
           ),
         ],
       ),
-    );
-  }
+    );  }
 }
 
 class JamaahLocation {
