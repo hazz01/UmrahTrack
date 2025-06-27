@@ -33,21 +33,14 @@ class _LocationPageState extends State<LocationPage> {
   LatLng _currentLocation = const LatLng(MapboxConfig.meccaLatitude, MapboxConfig.meccaLongitude);
   LatLng? _selfLocation;
   bool _isLoading = true;
-  String? _error;
-  bool _showLocationSummary = false;
-    // Filter dan pencarian
-  List<Map<String, dynamic>> _rombonganList = [];
-  String? _selectedRombonganFilter;
-  String _searchQuery = '';
+  String? _error;  bool _showLocationSummary = false;
     // Stream subscriptions
   StreamSubscription<DatabaseEvent>? _locationsSubscription;
   Timer? _refreshTimer;
-
   @override
   void initState() {
     super.initState();
     _initializeLocation();
-    _loadRombonganList();
     _startListeningToLocations();
     
     // Refresh data setiap 30 detik
@@ -93,18 +86,18 @@ class _LocationPageState extends State<LocationPage> {
       final travelId = travelIdQuery.data()?['travelId'];
       if (travelId == null) return;
 
-      final rombonganQuery = await _firestore
-          .collection('rombongan')
-          .where('travelId', isEqualTo: travelId)
-          .get();      setState(() {
-        _rombonganList = rombonganQuery.docs
-            .map((doc) => {
-              'id': doc.id,
-              'name': doc.data()['name'] ?? 'Unknown',
-              ...doc.data()
-            })
-            .toList();
-      });
+      // final rombonganQuery = await _firestore
+      //     .collection('rombongan')
+      //     .where('travelId', isEqualTo: travelId)
+      //     .get();      setState(() {
+      //   _rombonganList = rombonganQuery.docs
+      //       .map((doc) => {
+      //         'id': doc.id,
+      //         'name': doc.data()['name'] ?? 'Unknown',
+      //         ...doc.data()
+      //       })
+      //       .toList();
+      // });
     } catch (e) {
       print('Error loading rombongan list: $e');
     }
@@ -219,19 +212,19 @@ class _LocationPageState extends State<LocationPage> {
   List<JamaahLocation> _getFilteredJamaah() {
     List<JamaahLocation> filtered = _jamaahList;
 
-    // Filter by rombongan
-    if (_selectedRombonganFilter != null) {
-      filtered = filtered.where((jamaah) => 
-          jamaah.rombonganName == _selectedRombonganFilter).toList();
-    }
+    // // Filter by rombongan
+    // if (_selectedRombonganFilter != null) {
+    //   filtered = filtered.where((jamaah) => 
+    //       jamaah.rombonganName == _selectedRombonganFilter).toList();
+    // }
 
-    // Filter by search query
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((jamaah) => 
-          jamaah.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          jamaah.email.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          jamaah.rombonganName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-    }
+    // // Filter by search query
+    // if (_searchQuery.isNotEmpty) {
+    //   filtered = filtered.where((jamaah) => 
+    //       jamaah.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+    //       jamaah.email.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+    //       jamaah.rombonganName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    // }
 
     return filtered;
   }  void _selectJamaah(JamaahLocation jamaah) {
@@ -303,23 +296,9 @@ class _LocationPageState extends State<LocationPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
+  Widget build(BuildContext context) {    if (_isLoading) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
-        appBar: AppBar(
-          title: const Text(
-            'Lokasi Jamaah',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          backgroundColor: const Color(0xFF1658B3),
-          elevation: 0,
-          centerTitle: true,
-          automaticallyImplyLeading: false,
-        ),
         body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -339,24 +318,9 @@ class _LocationPageState extends State<LocationPage> {
           ),
         ),
       );
-    }
-
-    if (_error != null) {
+    }    if (_error != null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
-        appBar: AppBar(
-          title: const Text(
-            'Lokasi Jamaah',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          backgroundColor: const Color(0xFF1658B3),
-          elevation: 0,
-          centerTitle: true,
-          automaticallyImplyLeading: false,
-        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -409,7 +373,10 @@ class _LocationPageState extends State<LocationPage> {
       );
     }    return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      body: Stack(
+      extendBodyBehindAppBar: true,
+      body: SafeArea(
+        top: false, // Allow body to extend behind status bar
+        child: Stack(
         children: [
           // Flutter Map with Mapbox tiles
           FlutterMap(
@@ -489,13 +456,32 @@ class _LocationPageState extends State<LocationPage> {
                       ),
                     ),
                   ],
+                ),            ],
+          ),
+
+          // Status bar overlay gradient for better visibility
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 100,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.transparent,
+                  ],
                 ),
-            ],
+              ),
+            ),
           ),
 
           // Floating action buttons
           Positioned(
-            top: 16,
+            top: 60, // Moved down from 16 to account for status bar
             right: 16,
             child: Column(
               children: [
@@ -572,17 +558,16 @@ class _LocationPageState extends State<LocationPage> {
           ),
 
           // Filter and search panel
-          _buildFilterPanel(),
+          // _buildFilterPanel(),
 
           // Jamaah detail card
           if (_selectedJamaah != null) _buildJamaahDetailCard(),
 
           // Location summary
-          if (_showLocationSummary) _buildLocationSummary(),
-
-          // Bottom action buttons
+          if (_showLocationSummary) _buildLocationSummary(),          // Bottom action buttons
           _buildBottomActionButtons(),
         ],
+        ),
       ),
       bottomNavigationBar: BottomNavbarAdmin(
         currentIndex: 1,
@@ -603,105 +588,104 @@ class _LocationPageState extends State<LocationPage> {
     );
   }
 
-  Widget _buildFilterPanel() {
-    return Positioned(
-      top: 16,
-      left: 16,
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Container(
-          width: 300,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.filter_list,
-                    color: Color(0xFF1658B3),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Filter & Cari',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Color(0xFF2E3A59),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${_getFilteredJamaah().length} dari ${_jamaahList.length}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF636363),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+  // Widget _buildFilterPanel() {
+  //   return Positioned(
+  //     top: 16,
+  //     left: 16,
+  //     child: Card(
+  //       elevation: 4,
+  //       shape: RoundedRectangleBorder(
+  //         borderRadius: BorderRadius.circular(12),
+  //       ),
+  //       child: Container(
+  //         width: 300,
+  //         padding: const EdgeInsets.all(16),
+  //         child: Column(
+  //           mainAxisSize: MainAxisSize.min,
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           children: [
+  //             Row(
+  //               children: [
+  //                 const Icon(
+  //                   Icons.filter_list,
+  //                   color: Color(0xFF1658B3),
+  //                   size: 20,
+  //                 ),
+  //                 const SizedBox(width: 8),
+  //                 const Text(
+  //                   'Filter & Cari',
+  //                   style: TextStyle(
+  //                     fontWeight: FontWeight.bold,
+  //                     fontSize: 16,
+  //                     color: Color(0xFF2E3A59),
+  //                   ),
+  //                 ),
+  //                 const Spacer(),
+  //                 Text(
+  //                   '${_getFilteredJamaah().length} dari ${_jamaahList.length}',
+  //                   style: const TextStyle(
+  //                     fontSize: 12,
+  //                     color: Color(0xFF636363),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //             const SizedBox(height: 12),
               
-              // Search field
-              TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Cari nama atau email...',
-                  prefixIcon: Icon(Icons.search, size: 20),
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  isDense: true,
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                  _updateMapMarkers();
-                },
-              ),
-              const SizedBox(height: 8),
+  //             // Search field
+  //             TextField(
+  //               decoration: const InputDecoration(
+  //                 hintText: 'Cari nama atau email...',
+  //                 prefixIcon: Icon(Icons.search, size: 20),
+  //                 border: OutlineInputBorder(),
+  //                 contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+  //                 isDense: true,
+  //               ),
+  //               onChanged: (value) {
+  //                 setState(() {
+  //                   _searchQuery = value;
+  //                 });
+  //                 _updateMapMarkers();
+  //               },
+  //             ),
+  //             const SizedBox(height: 8),
               
-              // Rombongan filter
-              DropdownButtonFormField<String>(
-                value: _selectedRombonganFilter,
-                decoration: const InputDecoration(
-                  labelText: 'Filter Rombongan',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  isDense: true,
-                ),
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('Semua Rombongan'),
-                  ),                  ..._rombonganList.map((rombongan) {
-                    return DropdownMenuItem<String>(
-                      value: rombongan['name'] as String,
-                      child: Text(rombongan['name'] as String),
-                    );
-                  }).toList(),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedRombonganFilter = value;
-                  });
-                  _updateMapMarkers();
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
+  //             // Rombongan filter
+  //             DropdownButtonFormField<String>(
+  //               value: _selectedRombonganFilter,
+  //               decoration: const InputDecoration(
+  //                 labelText: 'Filter Rombongan',
+  //                 border: OutlineInputBorder(),
+  //                 contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+  //                 isDense: true,
+  //               ),
+  //               items: [
+  //                 const DropdownMenuItem<String>(
+  //                   value: null,
+  //                   child: Text('Semua Rombongan'),
+  //                 ),                  ..._rombonganList.map((rombongan) {
+  //                   return DropdownMenuItem<String>(
+  //                     value: rombongan['name'] as String,
+  //                     child: Text(rombongan['name'] as String),
+  //                   );
+  //                 }).toList(),
+  //               ],
+  //               onChanged: (value) {
+  //                 setState(() {
+  //                   _selectedRombonganFilter = value;
+  //                 });
+  //                 _updateMapMarkers();
+  //               },
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
   Widget _buildJamaahDetailCard() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+      margin: const EdgeInsets.fromLTRB(24, 60, 24, 16), // Added top margin for status bar
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -967,11 +951,10 @@ class _LocationPageState extends State<LocationPage> {
       ),
     );
   }
-
   Widget _buildLocationSummary() {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      margin: const EdgeInsets.fromLTRB(24, 60, 24, 24), // Added top margin for status bar
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
